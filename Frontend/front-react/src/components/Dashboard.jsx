@@ -867,7 +867,7 @@ function Dashboard() {
             <section className="vista-config-usuario">
               <h2>⚙️ Configuración de la Cuenta</h2>
               <p>
-                Aquí podrás configurar opciones de tu cuenta (por ejemplo,
+               (por ejemplo,
                 cambiar contraseña, idioma, tema, etc.).
               </p>
               <p>
