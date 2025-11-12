@@ -1,0 +1,22 @@
+{
+  "roles": {
+    "3": [
+      "reservas.crear"
+    ]
+  },
+  "usuarios": {
+    "4": [
+      "reportes",
+      "reportes.uso",
+      "reportes.usuarios",
+      "reportes.dashboard"
+    ],
+    "6": [
+      "reservas",
+      "reservas.listado",
+      "reservas.calendario",
+      "reservas.crear",
+      "reservas.historial"
+    ]
+  }
+}

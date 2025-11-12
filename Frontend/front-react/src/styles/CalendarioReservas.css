@@ -1,0 +1,302 @@
+/* =========================================================
+   Calendario de Reservas (versión cr-*)
+   Limpio, responsivo y consistente con tu componente
+   ========================================================= */
+:root{
+  --brand: #1e40af;    /* azul principal */
+  --brand-2: #0ea5e9;  /* acento */
+  --ink: #0f172a;      /* texto principal */
+  --ink-2: #475569;    /* texto secundario */
+  --line: #e5e7eb;     /* bordes suaves */
+  --bg: #f8fafc;       /* fondo app */
+  --card: #ffffff;     /* fondo tarjeta */
+}
+
+/* Contenedor general */
+.cr-wrap{
+  display:grid;
+  grid-template-columns: minmax(620px, 1fr) 360px;
+  gap:18px;
+  align-items:start;
+}
+
+/* Encabezado (fila completa) */
+.cr-head{
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:2px 0 6px;
+}
+.cr-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.cr-title{
+  margin:0;
+  font-size:22px;
+  font-weight:800;
+  color:var(--ink);
+  letter-spacing:.2px;
+}
+.cr-nav{
+  background:var(--brand);
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  padding:6px 10px;
+  cursor:pointer;
+  transition:transform .06s ease, filter .15s ease;
+}
+.cr-nav:hover{ filter:brightness(.95); }
+.cr-nav:active{ transform:translateY(1px); }
+
+.cr-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.cr-btn{
+  background:#e5e7eb;
+  border:none;
+  color:#111827;
+  border-radius:10px;
+  padding:6px 10px;
+  font-weight:600;
+  cursor:pointer;
+}
+.cr-btn.ok{
+  background:var(--brand);
+  color:#fff;
+}
+.cr-btn:hover{ filter:brightness(.97); }
+
+/* Mensajes de estado */
+.cr-msg{
+  grid-column:1 / -1;
+  padding:10px 12px;
+  border:1px solid;
+  border-radius:10px;
+  font-weight:600;
+  text-align:center;
+}
+.cr-msg.ok{ background:#e8f5e9; color:#2e7d32; border-color:#c8e6c9; }
+.cr-msg.err{ background:#ffebee; color:#c62828; border-color:#ffcdd2; }
+
+/* Región principal: calendario + panel lateral */
+.cr-main{
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns: minmax(620px, 1fr) 360px;
+  gap:18px;
+  align-items:start;
+}
+
+/* Calendario (izquierda) */
+.cr-cal{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(2,6,23,.06);
+  overflow:hidden;
+
+  display:grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+  gap:2px;
+  padding:8px;
+}
+
+/* Días de la semana */
+.cr-dow{
+  background:var(--brand);
+  color:#fff;
+  font-weight:700;
+  font-size:12.5px;
+  letter-spacing:.3px;
+  text-transform:uppercase;
+  text-align:center;
+  padding:8px 4px;
+  border-radius:10px;
+}
+
+/* Celdas del calendario */
+.cr-cell{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:#ffffff;
+  border:1px solid transparent;
+  border-radius:12px;
+  aspect-ratio: 1 / 0.9;
+  max-height:112px;
+  min-height:74px;
+  padding:8px;
+  cursor:pointer;
+  transition: box-shadow .12s ease, background .12s ease, border-color .12s ease;
+}
+.cr-cell:hover{
+  background:#f8fafc;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.cr-cell.off{
+  background:#fafafa;
+  color:#94a3b8;
+}
+.cr-cell.today{
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+.cr-cell.sel{
+  box-shadow: inset 0 0 0 2px var(--brand-2);
+}
+
+/* Fecha en la esquina superior izquierda */
+.cr-date{
+  font-weight:800;
+  font-size:13.5px;
+  color:var(--ink);
+}
+
+/* Badge de cantidad */
+.cr-badge{
+  position:absolute;
+  top:8px;
+  right:8px;
+  background:var(--brand-2);
+  color:#fff;
+  font-weight:800;
+  font-size:11.5px;
+  padding:3px 7px;
+  border-radius:999px;
+  box-shadow:0 4px 10px rgba(14,165,233,.25);
+}
+
+/* Panel lateral (derecha) */
+.cr-side{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 8px 24px rgba(2,6,23,.06);
+}
+
+/* Encabezado del panel */
+.cr-side-h{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+  font-size:16px;
+  font-weight:800;
+  color:var(--ink);
+  text-transform:capitalize; /* para nombres de días/meses en es-GT */
+}
+
+.cr-clear{
+  background:#e5e7eb;
+  border:none;
+  border-radius:10px;
+  padding:6px 10px;
+  cursor:pointer;
+}
+.cr-clear:hover{ filter:brightness(.95); }
+
+/* Estados vacíos / carga */
+.cr-empty{
+  padding:16px;
+  text-align:center;
+  color:#64748b;
+  font-style:italic;
+}
+
+/* Lista de reservas */
+.cr-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:420px;
+  overflow:auto;
+}
+.cr-item{
+  background:#fbfbfb;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+}
+
+/* Cabecera de cada ítem (tiempo y flechas) */
+.cr-time{
+  display:flex;
+  align-items:center;
+  font-weight:800;
+  color:#111827;
+  margin-bottom:6px;
+}
+
+/* Cuerpo de cada ítem */
+.cr-body{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.cr-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--ink-2);
+  font-size:14px;
+}
+.cr-row.small{
+  font-size:13px;
+}
+
+/* Indicadores tipo “dot” por clase del recurso */
+.dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+}
+.dot-space{ background:#0d9488; } /* Espacio */
+.dot-inv{ background:#2563eb; }   /* Mueble/Inventario */
+
+/* Nombre del recurso recortable */
+.cr-name{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:240px;
+}
+
+/* Badges y cantidades */
+.badge{
+  background:#e5e7eb;
+  color:#111827;
+  font-weight:700;
+  border-radius:999px;
+  padding:2px 8px;
+}
+.qty{
+  margin-left:8px;
+  background:var(--brand);
+  color:#fff;
+  border-radius:999px;
+  padding:2px 7px;
+  font-weight:800;
+  font-size:12px;
+  box-shadow:0 2px 6px rgba(30,64,175,.25);
+}
+
+/* Responsivo */
+@media (max-width:1100px){
+  .cr-wrap{
+    grid-template-columns: 1fr;
+  }
+  .cr-main{
+    grid-template-columns: 1fr;
+  }
+  .cr-name{ max-width: unset; }
+}

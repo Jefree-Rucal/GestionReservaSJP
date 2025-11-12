@@ -1,0 +1,292 @@
+.historial-container {
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.titulo-historial {
+  color: #1e40af;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.hist-alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.hist-alert--ok {
+  background: #ecfeff;
+  border-color: #a5f3fc;
+  color: #0f766e;
+}
+.hist-alert--error {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.filtros {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.filtros .grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filtros .grupo input,
+.filtros .grupo select {
+  padding: 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.filtros .grupo.grow {
+  grid-column: span 2;
+}
+.filtros .acciones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+}
+.btn {
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.btn:hover { opacity: .95; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-pdf { background: #0f766e; }
+.btn-pdf:hover { filter: brightness(0.95); }
+
+.resumen {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chip {
+  background: #eef2ff;
+  color: #1e3a8a;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* ===== SCROLL MEJORADO - ALTURA REDUCIDA ===== */
+.tabla-wrap {
+  max-height: 400px !important;
+  height: 400px;
+  overflow-y: scroll !important;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  position: relative;
+  display: block;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 900px;
+  table-layout: auto;
+  display: table;
+}
+
+.tabla thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1e40af;
+}
+
+.tabla thead th {
+  background: #1e40af;
+  color: #fff;
+  padding: 12px;
+  border-bottom: 2px solid #1e3a8a;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0,0,0,.15);
+  position: relative;
+  font-weight: 600;
+}
+
+.tabla td { 
+  padding: 12px; 
+  border-bottom: 1px solid #e5e7eb; 
+  text-align: left;
+  background: inherit;
+}
+
+.tabla tbody {
+  display: table-row-group;
+}
+
+.tabla tbody tr {
+  background: #fff;
+  display: table-row;
+}
+
+/* filas por estado */
+.tabla tbody tr.estado-1 { background: rgba(22,163,74,.06); }  /* Activa */
+.tabla tbody tr.estado-2 { background: rgba(245, 158, 11, .08); } /* Pendiente (ámbar suave) */
+.tabla tbody tr.estado-3 { background: rgba(239,68,68,.06); }  /* Cancelada */
+.tabla tbody tr.estado-5 { background: rgba(34, 197, 94, .08); }  /* Aprobada (verde suave) */
+.tabla tbody tr.estado-6 { background: rgba(239, 68, 68, .08); }  /* Rechazada (rojo suave) */
+.tabla tbody tr.estado-8 { background: rgba(107,114,128,.12); } /* Cancelada (gris) */
+
+.sin-datos { text-align: center; color: #64748b; padding: 24px; }
+
+/* badge estado */
+.badge {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.badge-1 { background: #16a34a; } /* verde */
+.badge-2 { background: #f59e0b; } /* Pendiente (ámbar) */
+.badge-3 { background: #ef4444; } /* rojo */
+.badge-5 { background: #22c55e; } /* Aprobada (verde) */
+.badge-6 { background: #ef4444; } /* Rechazada (rojo) */
+.badge-8 {
+  background: #6B7280;
+  color: #fff;
+  border: 1px solid #4B5563;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.08);
+}
+
+/* pill de Tipo */
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+}
+/* colores por tipo */
+.pill-inmueble { background: #9333ea; } /* morado */
+.pill-espacio  { background: #f59e0b; } /* ámbar  */
+.pill-         { background: #9ca3af; } /* fallback si no hay tipo */
+
+.btn-mini {
+  background: #334155;
+  color: #fff;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Opcional: destacar el botón de recibo */
+.btn-mini[title="Generar recibo"] { background: #0ea5e9; }
+.btn-mini[title="Generar recibo"]:hover { filter: brightness(.95); }
+
+.paginacion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+.paginacion .left label { display: flex; gap: 8px; align-items: center; }
+.paginacion select {
+  padding: 6px 8px; border-radius: 8px; border: 1px solid #e5e7eb;
+}
+.paginacion .right { display: flex; gap: 8px; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal {
+  background: #fff;
+  width: 90%;
+  max-width: 560px;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.2);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid #e5e7eb;
+}
+.modal-body { padding: 16px; }
+.modal-footer { padding: 12px 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; }
+.modal-close {
+  background: transparent; border: none; font-size: 22px; cursor: pointer;
+}
+
+/* Rango de reserva en modal */
+.rango-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 10px 0 14px;
+}
+.rango-line {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+}
+.rango-chip {
+  display: inline-block;
+  background: #1e3a8a;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.rango-duracion {
+  margin-top: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+/* IMPORTANTE: Personalizar scrollbar para mejor UX */
+.tabla-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tabla-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.tabla-wrap::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 8px;
+}
+
+.tabla-wrap::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

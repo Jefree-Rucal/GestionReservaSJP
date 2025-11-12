@@ -1,0 +1,265 @@
+/* Importar tipografía elegante */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+.configurar-tarifas-container {
+  padding: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  background: #f8fafc;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.configurar-tarifas-container h2 {
+  color: #1976d2;
+  text-align: center;
+  margin-bottom: 28px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Mensajes */
+.mensaje {
+  padding: 16px 24px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 14px;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid;
+}
+
+.mensaje.exito { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.mensaje.error { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Header: compacto, sin hueco central */
+.tarifas-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;  /* antes: space-between */
+  gap: 16px;                    /* separa botón y stats sin generar “hueco” */
+  margin-bottom: 18px;
+}
+
+.btn-nueva-tarifa {
+  background: linear-gradient(135deg, #1976d2, #2196f3);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 1px -2px rgba(25, 118, 210, 0.2), 0 2px 2px 0 rgba(25, 118, 210, 0.14), 0 1px 5px 0 rgba(25, 118, 210, 0.12);
+}
+.btn-nueva-tarifa:hover {
+  background: linear-gradient(135deg, #1565c0, #1e88e5);
+  box-shadow: 0 5px 5px -3px rgba(25, 118, 210, 0.2), 0 8px 10px 1px rgba(25, 118, 210, 0.14), 0 3px 14px 2px rgba(25, 118, 210, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Stats a la derecha sin expandir el centro */
+.tarifas-stats {
+  display: flex;                /* antes: grid */
+  gap: 12px;
+  margin-left: auto;            /* empuja las tarjetas a la derecha */
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #004d99, #0066cc);
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+  min-width: 160px;             /* tamaño consistente de tarjeta */
+}
+.stat-card.active   { background: linear-gradient(135deg, #4caf50, #66bb6a); box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2); }
+.stat-card.inactive { background: linear-gradient(135deg, #f44336, #ef5350); box-shadow: 0 4px 12px rgba(244, 67, 54, 0.2); }
+.stat-card h4 { margin: 0 0 6px 0; font-size: 14px; font-weight: 500; opacity: 0.9; }
+.stat-card .stat-number { font-size: 26px; font-weight: 700; display: block; }
+
+/* Tabla de tarifas */
+.tarifas-table-container {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.tarifas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tarifas-table thead { background: #1976d2; color: white; }
+.tarifas-table th {
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tarifas-table td { padding: 14px 12px; border-bottom: 1px solid #e0e0e0; }
+.tarifas-table tbody tr:hover { background: #f8f9fa; }
+.tarifas-table tbody tr.active   { background: rgba(76, 175, 80, 0.05); }
+.tarifas-table tbody tr.inactive { background: rgba(244, 67, 54, 0.05); }
+
+.no-data {
+  text-align: center;
+  padding: 36px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.recurso-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.estado-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.estado-badge.activo   { background: #4caf50; color: white; }
+.estado-badge.inactivo { background: #f44336; color: white; }
+
+/* Acciones */
+.acciones-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.btn-editar, .btn-eliminar {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-editar  { background: #ffc107; color: #212529; }
+.btn-eliminar{ background: #f44336; color: white; }
+.btn-editar:hover, .btn-eliminar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(5px);
+}
+.modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  width: 90%; max-width: 600px; max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px; border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #1976d2, #2196f3);
+  color: white; border-radius: 16px 16px 0 0;
+}
+.modal-header h3 { margin: 0; font-size: 20px; font-weight: 600; }
+.modal-close {
+  background: none; border: none; color: white; font-size: 24px; cursor: pointer;
+  padding: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background-color 0.2s;
+}
+.modal-close:hover { background: rgba(255, 255, 255, 0.2); }
+
+.modal-form { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label { font-weight: 600; color: #212121; font-size: 14px; letter-spacing: 0.25px; }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;
+  background: #fafafa; color: #212121;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+  background: #ffffff; transform: translateY(-1px);
+}
+.form-group textarea { resize: vertical; min-height: 80px; }
+
+.modal-actions {
+  display: flex; gap: 16px; justify-content: flex-end; margin-top: 16px;
+}
+.btn-cancelar, .btn-guardar {
+  padding: 12px 20px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-cancelar { background: #6c757d; color: white; }
+.btn-guardar  {
+  background: linear-gradient(135deg, #1976d2, #2196f3); color: white;
+  box-shadow: 0 3px 1px -2px rgba(25, 118, 210, 0.2), 0 2px 2px 0 rgba(25, 118, 210, 0.14), 0 1px 5px 0 rgba(25, 118, 210, 0.12);
+}
+.btn-cancelar:hover { background: #5a6268; transform: translateY(-1px); }
+.btn-guardar:hover  {
+  background: linear-gradient(135deg, #1565c0, #1e88e5);
+  box-shadow: 0 5px 5px -3px rgba(25, 118, 210, 0.2), 0 8px 10px 1px rgba(25, 118, 210, 0.14), 0 3px 14px 2px rgba(25, 118, 210, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Loading */
+.loading { text-align: center; padding: 40px; font-size: 18px; color: #1976d2; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .configurar-tarifas-container { padding: 16px; margin: 16px; }
+  .tarifas-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .btn-nueva-tarifa { align-self: stretch; justify-content: center; }
+  .tarifas-stats { margin-left: 0; width: 100%; justify-content: space-between; }
+  .stat-card { flex: 1; min-width: 0; }
+  .modal-content { width: 95%; margin: 10px; }
+  .modal-form { padding: 16px; }
+  .modal-actions { flex-direction: column; }
+  .btn-cancelar, .btn-guardar { width: 100%; }
+}

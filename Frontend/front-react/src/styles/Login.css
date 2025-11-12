@@ -1,0 +1,193 @@
+/* ====== CONTENEDOR GENERAL ====== */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #eef3ff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ====== TARJETA ====== */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  padding: 28px 28px 24px;
+  box-sizing: border-box;
+}
+
+/* ====== CABECERA ====== */
+.login-header {
+  margin-bottom: 18px;
+}
+
+.login-header h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.login-header .muted {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ====== ALERTAS ====== */
+.login-alert {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* ====== FORMULARIO ====== */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 2px;
+}
+
+.inp {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 9px 11px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  background-color: #f9fafb;
+}
+
+.inp:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.inp::placeholder {
+  color: #9ca3af;
+}
+
+/* Fila de contraseña + icono ojo */
+.pass-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pass-row .inp {
+  flex: 1;
+}
+
+/* Botón ojito */
+.btn-eye {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-eye:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.btn-eye:active {
+  transform: scale(0.96);
+}
+
+/* ====== BOTÓN PRINCIPAL ====== */
+.btn-login {
+  margin-top: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.45);
+}
+
+.btn-login:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.30);
+}
+
+.btn-login:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ====== TEXTO DEMO / AYUDA ====== */
+.demo-tip {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.demo-tip strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ====== BOTÓN PARA CAMBIAR DE MODO (login / reset) ====== */
+.btn-link-switch {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Si ya tienes estilos globales de botones, evitamos que se rompa */
+.btn-link-switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 22px 18px 18px;
+    border-radius: 16px;
+  }
+
+  .login-header h2 {
+    font-size: 20px;
+  }
+}

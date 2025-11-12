@@ -1,0 +1,202 @@
+/* ===== VistaDisponibilidad ===== */
+
+.disp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Header con filtros */
+.disp-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.disp-toolbar h3 {
+  margin: 0;
+  color: #1e40af;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+.disp-filtros {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.disp-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.disp-filtros input[type="date"] {
+  padding: 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+/* Tabs */
+.disp-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  position: relative;
+  background: #eaf0ff;
+  color: #1e3a8a;
+  border: 1px solid #c7d2fe;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .05s ease, background .15s ease;
+}
+
+.tab-btn .count {
+  margin-left: 8px;
+  background: #1e3a8a;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tab-btn:hover { filter: brightness(.98); }
+.tab-btn:active { transform: scale(.98); }
+
+.tab-btn.is-active {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #1e3a8a;
+}
+.tab-btn.is-active .count { background: rgba(255,255,255,.18); }
+
+/* Tarjeta */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.04);
+}
+
+.card-title {
+  font-weight: 800;
+  color: #1e3a8a;
+  margin: 4px 0 10px;
+  letter-spacing: .2px;
+}
+
+/* Tabla con scroll (coincide con tu .tabla-wrap global) */
+.tabla-wrap {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden; /* por defecto sin scroll */
+}
+
+/* forzar scroll cuando se usa la clase modificadora */
+.tabla-wrap.--with-scroll {
+  overflow: auto;           /* vertical + horizontal según contenido */
+  max-height: 420px;        /* altura controlada */
+}
+
+/* Tabla base (respeta tus estilos globales, con mejoras sutiles aquí) */
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla thead {
+  background: #1e40af;
+  color: #fff;
+}
+
+.tabla th,
+.tabla td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Encabezado pegajoso cuando hay scroll */
+.tabla-wrap.--with-scroll .tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #1e40af;  /* asegura color al pegar */
+  color: #fff;
+}
+
+.tabla tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Estados / badges (compatibles con los de Historial) */
+.badge {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  display: inline-block;
+  min-width: 34px;
+  text-align: center;
+}
+.badge-5 { background: #22c55e; } /* Aprobada / Libre */
+.badge-6 { background: #ef4444; } /* Rechazada / Ocupado */
+.badge-2 { background: #f59e0b; } /* Pendiente (si lo usas) */
+
+.sin-datos { text-align: center; color: #64748b; padding: 24px; }
+.muted { color: #64748b; display: inline-block; margin-top: 8px; }
+
+/* Scrollbar sutil (WebKit) */
+.tabla-wrap.--with-scroll::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.tabla-wrap.--with-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+.tabla-wrap.--with-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 999px;
+}
+
+/* Accesibilidad foco */
+.disp-filtros input[type="date"]:focus,
+.tab-btn:focus,
+.card .tabla a:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(147,197,253,.35);
+}
+
+/* Responsivo */
+@media (max-width: 720px) {
+  .disp-toolbar { align-items: start; }
+  .disp-filtros { width: 100%; }
+  .disp-filtros label { width: calc(50% - 5px); }
+  .tabla-wrap.--with-scroll { max-height: 360px; }
+}
+
+@media (max-width: 520px) {
+  .disp-filtros label { width: 100%; }
+  .tab-btn { width: 100%; text-align: center; }
+}

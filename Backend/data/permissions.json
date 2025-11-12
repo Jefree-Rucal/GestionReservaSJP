@@ -1,0 +1,69 @@
+{
+  "roles": {
+    "1": [
+      "reservas",
+      "reservas.crear",
+      "reservas.listado",
+      "reservas.historial",
+      "reservas.calendario",
+      "reservas.aprobacion",
+      "espacios",
+      "espacios.crear-espacio",
+      "espacios.crear-mueble",
+      "espacios.listado-espacios",
+      "espacios.listado-muebles",
+      "espacios.disponibilidad",
+      "pagos",
+      "pagos.config",
+      "pagos.registrar",
+      "pagos.historial",
+      "pagos.reporte",
+      "usuarios",
+      "usuarios.listado",
+      "usuarios.crear",
+      "usuarios.permisos",
+      "reportes",
+      "reportes.uso",
+      "reportes.usuarios",
+      "reportes.dashboard",
+      "config",
+      "config.institucion",
+      "config.parametros",
+      "config.horarios",
+      "config.seguridad",
+      "config.backup"
+    ],
+    "2": [
+      "reservas",
+      "reservas.crear",
+      "reservas.listado",
+      "reservas.historial",
+      "reservas.calendario",
+      "reservas.aprobacion",
+      "espacios",
+      "espacios.crear-espacio",
+      "espacios.crear-mueble",
+      "espacios.listado-espacios",
+      "espacios.listado-muebles",
+      "espacios.disponibilidad"
+    ],
+    "3": [],
+    "6": []
+  },
+  "usuarios": {
+    "5": [
+      "reservas",
+      "reservas.crear",
+      "reservas.listado",
+      "reservas.historial",
+      "reservas.calendario",
+      "reservas.aprobacion",
+      "espacios",
+      "espacios.crear-espacio",
+      "espacios.crear-mueble",
+      "espacios.listado-espacios",
+      "espacios.listado-muebles",
+      "espacios.disponibilidad"
+    ]
+  }
+}

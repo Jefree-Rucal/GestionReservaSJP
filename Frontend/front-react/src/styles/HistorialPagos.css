@@ -1,0 +1,220 @@
+/* === HistorialPagos.css (institucional morado + alias compatibles) === */
+
+/* Contenedor principal */
+.historial-pagos-container,
+.registrar-pago-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: linear-gradient(135deg, #fafbff 0%, #eef2ff 100%);
+  min-height: 100vh;
+}
+
+/* Header */
+.historial-header,
+.pagina-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.historial-header .titulo-pagina,
+.pagina-header .titulo-pagina {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: .2px;
+  background: linear-gradient(45deg, #5b21b6, #7c3aed, #8b5cf6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.historial-header .descripcion-pagina,
+.pagina-header .descripcion-pagina {
+  color: #4b5563;
+  margin: 6px 0 0;
+}
+
+/* Filtros / barra superior */
+.filtros,
+.busqueda-filtros {
+  background: #ffffffcc;
+  border: 1px solid rgba(99, 102, 241, .2);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(30, 27, 75, .08);
+  margin-bottom: 16px;
+}
+.filtros,
+.busqueda-filtros .busqueda-filtros-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+}
+.campo-busqueda { display: grid; gap: 6px; }
+.label-busqueda { font-weight: 800; color: #4c1d95; }
+
+.filtros input,
+.filtros select,
+.input-busqueda {
+  padding: 12px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fff, #fafafa);
+  font-size: 14px;
+  transition: .18s ease;
+}
+.filtros input:focus,
+.filtros select:focus,
+.input-busqueda:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, .18);
+}
+
+/* Panel / Tabla contenedor */
+.tabla-contenedor {
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226, 232, 240, .6);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, .08);
+  overflow: hidden;
+}
+.tabla-scroll { overflow: auto; max-height: 65vh; }
+
+/* Tabla */
+.tabla-reservas {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.encabezado-tabla th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #5b21b6;
+  color: #fff;
+  text-align: left;
+  font-weight: 800;
+  letter-spacing: .3px;
+  padding: 14px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, .18);
+}
+.tabla-reservas tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f7;
+  color: #0f172a;
+  font-size: 14px;
+}
+.tabla-reservas tbody tr:nth-child(odd) { background: #fbfdff; }
+.tabla-reservas tbody tr:hover { background: #f3f0ff; }
+
+.dato-reserva.monto-reserva { font-weight: 800; }
+.centrado, .columna-centrada { text-align: center; }
+.mono { font-variant-numeric: tabular-nums; }
+
+/* Botones */
+.btn-descargar,
+.btn-registrar-pago {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+/* Acciones principales */
+.btn-registrar-pago {
+  background: linear-gradient(145deg, #7c3aed, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, .26);
+}
+.btn-registrar-pago:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(124, 58, 237, .34);
+}
+
+/* Botón descargar / recibo */
+.btn-descargar {
+  background: linear-gradient(145deg, #10b981, #059669);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, .28);
+}
+.btn-descargar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(16, 185, 129, .36);
+}
+
+/* Estados (si los usas) */
+.estado-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-block;
+  min-width: 96px;
+  text-align: center;
+  letter-spacing: .3px;
+}
+.estado-badge.pendiente {
+  background: linear-gradient(145deg, #ffecb3, #ffe082);
+  color: #b45309;
+  border: 1px solid #facc15;
+}
+.estado-badge.pagado {
+  background: linear-gradient(145deg, #c8e6c9, #a5d6a7);
+  color: #14532d;
+  border: 1px solid #34d399;
+}
+
+/* Empty State / Mensajes */
+.fila-sin-datos td {
+  text-align: center;
+  padding: 42px 18px;
+  color: #667085;
+  font-weight: 700;
+}
+
+/* --------- OPCIONAL: Timeline (si lo usas en otra vista) --------- */
+.timeline { position: relative; padding-left: 28px; margin-top: 10px; }
+.timeline::before {
+  content: "";
+  position: absolute; left: 11px; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(180deg, #c7d2fe, #6366f1); opacity: .5;
+}
+.log-item {
+  position: relative; margin: 0 0 14px 0;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226,232,240,.6);
+  border-radius: 14px; padding: 12px 14px 12px 16px;
+  box-shadow: 0 10px 24px rgba(2,6,23,.08);
+}
+.log-item::before {
+  content: ""; position: absolute; left: -22px; top: 16px; width: 12px; height: 12px;
+  background: #7c3aed; border: 3px solid #ede9fe; border-radius: 50%;
+  box-shadow: 0 0 0 3px #ede9fe;
+}
+.log-top { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px; }
+.log-top .left { display:flex; gap:10px; align-items:center; color:#111827; font-weight:800; }
+.log-top .right { color:#475569; font-weight:700; }
+.log-body { color:#374151; margin-top:4px; font-size:14px; }
+.log-badge {
+  padding: 4px 10px; background:#ede9fe; border:1px solid #ddd6fe;
+  color:#5b21b6; border-radius:999px; font-size:12px; font-weight:800;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .filtros,
+  .busqueda-filtros .busqueda-filtros-grid {
+    grid-template-columns: 1fr;
+  }
+  .tabla-reservas { min-width: 720px; }
+}

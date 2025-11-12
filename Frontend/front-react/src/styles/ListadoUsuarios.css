@@ -1,0 +1,160 @@
+/* =======================================================
+   ListadoUsuarios.css — versión completa con separación
+   de botones y sin el "+" fantasma entre acciones
+   (coloca esta hoja DESPUÉS de cualquier otro CSS)
+   ======================================================= */
+
+:root{
+  --primary:#1d4ed8;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --border:#e5e7eb;
+  --success:#16a34a; /* verde */
+  --danger:#ef4444;  /* rojo */
+  --amber:#f59e0b;   /* naranja */
+}
+
+/* -------- contenedor -------- */
+.tabla-container{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:18px 20px;
+  box-shadow:0 8px 24px rgba(0,0,0,.06);
+  max-width:1200px;
+  margin:18px auto;
+}
+
+/* -------- header -------- */
+.tabla-header{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:12px;
+}
+.tabla-header h2{ margin:0; color:#1e40af; }
+
+.btn{
+  border:none; border-radius:10px; padding:9px 12px; cursor:pointer; font-weight:700;
+}
+.btn-primary{ background:var(--primary); color:#fff; }
+.btn-primary:hover{ filter:brightness(.95); }
+
+/* -------- alertas / loader -------- */
+.alert{
+  padding:10px 12px; border-radius:10px; border:1px solid; font-weight:600; margin:8px 0;
+}
+.alert-error{ background:#fee2e2; border-color:#fecaca; color:#b91c1c; }
+
+.loading{
+  max-width:1200px; margin:18px auto; text-align:center; color:var(--muted);
+}
+
+/* -------- filtros -------- */
+.filtros-container{
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:8px 0 10px;
+}
+.input-busqueda, .select-filtro{
+  padding:9px 12px; border:2px solid var(--border); border-radius:10px; background:#fafafa;
+}
+.input-busqueda{ flex:1 1 360px; }
+
+/* -------- stats -------- */
+.tabla-stats{
+  display:flex; gap:14px; color:var(--muted); margin-bottom:8px;
+}
+
+/* -------- tabla -------- */
+.tabla-responsive{
+  overflow:auto; border:1px solid var(--border); border-radius:12px; background:#fff;
+}
+.tabla{
+  width:100%; border-collapse:collapse; min-width:900px; font-size:14px;
+}
+.tabla thead{ background:#1e40af; color:#fff; }
+.tabla th, .tabla td{ padding:12px; border-bottom:1px solid var(--border); text-align:left; }
+.tabla tbody tr:hover{ background:#f9fafb; }
+
+.text-center{ text-align:center; }
+
+/* -------- badges base -------- */
+.badge{
+  display:inline-block; padding:4px 10px; border-radius:999px;
+  font-size:12px; font-weight:800; white-space:nowrap;
+}
+
+/* Estados (compatibilidad previa) */
+.badge-success{ background:#dcfce7; color:#166534; } /* Activo */
+.badge-danger{  background:#fee2e2; color:#b91c1c; } /* Inactivo */
+
+/* Estados nuevos explícitos */
+.badge-estado-activo{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #bbf7d0;
+}
+.badge-estado-inactivo{
+  background:#fee2e2;
+  color:#b91c1c;
+  border:1px solid #fecaca;
+}
+/* Variante ámbar opcional */
+.badge-estado-inactivo-alt{
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fde68a;
+}
+
+/* Roles */
+.badge-rol-1{ background:#dbeafe; color:#1e40af; } /* Administrador */
+.badge-rol-2{ background:#fef9c3; color:#92400e; } /* Gestor/Operador */
+.badge-rol-3{ background:#e5e7eb; color:#111827; } /* Aprobador/Usuario genérico */
+.badge-rol-5{ background:#fde68a; color:#92400e; } /* Recepción */
+.badge-rol-6{ background:#e5e7eb; color:#111827; } /* Usuario */
+
+/* -------- acciones -------- */
+.acciones-btn{
+  display:flex;
+  align-items:center;
+  gap:16px;            /* separación real entre botones */
+  flex-wrap:wrap;
+}
+
+/* Botones pequeños */
+.btn-sm{
+  padding:6px 8px; border-radius:8px; font-size:13px;
+  display:inline-flex; align-items:center; justify-content:center;
+  margin:0;           /* evita márgenes heredados */
+}
+.btn-warning{ background:var(--amber); color:#111827; }
+.btn-warning:hover{ filter:brightness(.95); }
+.btn-danger{ background:var(--danger); color:#fff; }
+.btn-danger:disabled{ opacity:.55; cursor:not-allowed; }
+.btn-danger:hover:not(:disabled){ filter:brightness(.95); }
+
+/* ===== Overrides duros para eliminar el "+" fantasma ===== */
+.acciones-btn .btn-sm::before,
+.acciones-btn .btn-sm::after,
+.acciones-btn .btn::before,
+.acciones-btn .btn::after,
+.acciones-btn button::before,
+.acciones-btn button::after,
+.acciones-btn .btn-sm + .btn-sm::before,
+.acciones-btn .btn + .btn::before,
+.acciones-btn button + button::before{
+  content:"" !important;
+  display:none !important;
+}
+
+/* Fallback de separación si otra hoja te pisa el gap */
+.acciones-btn .btn-sm + .btn-sm,
+.acciones-btn .btn + .btn,
+.acciones-btn button + button{
+  margin-left:16px !important;
+}
+
+/* -------- responsive -------- */
+@media (max-width:768px){
+  .tabla-header{ flex-direction:column; align-items:flex-start; gap:8px; }
+  .tabla-stats{ flex-direction:column; gap:6px; }
+}

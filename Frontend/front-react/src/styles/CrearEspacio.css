@@ -1,0 +1,213 @@
+/* Importar tipografía elegante */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+.crear-espacio-container {
+  padding: 32px;
+  max-width: 680px;
+  margin: 32px auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  position: relative;
+  /* ✅ importante para que el menú no se recorte */
+  overflow: visible;
+  z-index: 1;
+}
+
+.crear-espacio-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1976d2, #2196f3);
+  z-index: 1;
+}
+
+.crear-espacio-container h2 {
+  color: #00838f;
+  text-align: center;
+  margin-bottom: 32px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.crear-espacio-container h2 svg {
+  width: 24px;
+  height: 24px;
+  fill: #00838f;
+  filter: drop-shadow(0 0 5px rgba(0, 131, 143, 0.3));
+}
+
+.formulario-espacio {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.form-group { display: flex; flex-direction: column; position: relative; }
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #212121;
+  font-size: 14px;
+  letter-spacing: 0.25px;
+}
+
+.form-group input,
+.form-group select {
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fafafa;
+  color: #212121;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #00838f;
+  box-shadow: 0 0 0 2px rgba(0, 131, 143, 0.2);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.form-group input:hover,
+.form-group select:hover { border-color: #bdbdbd; }
+
+.form-group input::placeholder { color: #9e9e9e; }
+
+.btn-crear {
+  background: #00838f;
+  color: white;
+  padding: 16px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 16px;
+  box-shadow: 0 3px 1px -2px rgba(0, 131, 143, 0.2), 0 2px 2px 0 rgba(0, 131, 143, 0.14), 0 1px 5px 0 rgba(0, 131, 143, 0.12);
+}
+.btn-crear:hover {
+  background: #006064;
+  box-shadow: 0 5px 5px -3px rgba(0, 131, 143, 0.2), 0 8px 10px 1px rgba(0, 131, 143, 0.14), 0 3px 14px 2px rgba(0, 131, 143, 0.12);
+  transform: translateY(-1px);
+}
+.btn-crear:active {
+  background: #004d40;
+  box-shadow: 0 7px 8px -4px rgba(0, 131, 143, 0.2), 0 12px 17px 2px rgba(0, 131, 143, 0.14), 0 5px 22px 4px rgba(0, 131, 143, 0.12);
+  transform: translateY(0);
+}
+
+.mensaje {
+  padding: 16px 24px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 14px;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid;
+}
+.mensaje.exito { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.mensaje.error { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================================= */
+/* ===============  SELECT BONITO (Tipo)  ================== */
+/* ========================================================= */
+
+.ce-select__control{
+  position: relative;
+  display:flex; align-items:center; justify-content:space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+  background:#fff;
+  border:2px solid #e0e0e0;
+  border-radius:10px;
+  cursor:pointer;
+  transition: all .2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.ce-select__control:hover{ border-color:#bdbdbd; }
+.ce-select__control.is-open{
+  border-color:#00838f;
+  box-shadow:0 0 0 2px rgba(0,131,143,.2);
+}
+.ce-value{ display:flex; align-items:center; gap:8px; }
+.ce-placeholder{ color:#9e9e9e; font-weight:500; }
+.ce-caret{
+  width:0; height:0;
+  border-left:6px solid transparent; border-right:6px solid transparent;
+  border-top:6px solid #475569;
+  transition: transform .15s ease;
+}
+.ce-caret.up{ transform: rotate(180deg); }
+
+.ce-select__menu{
+  position:absolute; top: calc(100% + 8px); left:0; right:0;
+  z-index: 2000;
+  background:#fff;
+  border:1px solid #e0e0e0;
+  border-radius:12px;
+  box-shadow:0 12px 24px rgba(0,0,0,.12);
+  max-height: 220px;
+  overflow-y:auto;
+  padding:6px;
+  animation: ce-fade .12s ease-out;
+}
+@keyframes ce-fade{
+  from{opacity:0; transform: translateY(-4px);}
+  to{opacity:1; transform: translateY(0);}
+}
+.ce-option{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; border-radius:8px; cursor:pointer;
+  transition: background .15s ease;
+}
+.ce-option:hover{ background:#f6f7f9; }
+.ce-option__label{ font-weight:600; color:#0f172a; font-size:14px; }
+.ce-check{ margin-left:auto; color:#16a34a; font-weight:800; }
+
+/* Puntito de color por tipo */
+.ce-dot{ width:10px; height:10px; border-radius:999px; display:inline-block; }
+.ce-dot--recreativos   { background:#10b981; } /* verde agua */
+.ce-dot--comunales     { background:#3b82f6; } /* azul */
+.ce-dot--areas-verdes  { background:#22c55e; } /* verde */
+.ce-dot--varios    { background:#7c3aed; } /* morado */
+.ce-dot--eventos       { background:#f59e0b; } /* ámbar */
+
+/* Chip de la selección */
+.ce-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:4px 8px; border-radius:999px; font-weight:700; color:#fff; font-size:12px;
+}
+.ce-chip::before{ content:''; width:8px; height:8px; border-radius:999px; background: currentColor; opacity:.9; }
+
+.ce-chip--recreativos  { background:#10b981; }
+.ce-chip--comunales    { background:#3b82f6; }
+.ce-chip--areas-verdes { background:#22c55e; }
+.ce-chip--varios   { background:#7c3aed; }
+.ce-chip--eventos      { background:#f59e0b; }
+.ce-chip--default      { background:#475569; }
