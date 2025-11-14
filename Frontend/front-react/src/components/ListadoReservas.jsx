@@ -2,30 +2,81 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import '../styles/ListadoReservas.css';
 
-const BASE_URL =
-  import.meta?.env?.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:5000';
+/* ======================
+   BASE_URL robusto (sin import.meta)
+   ====================== */
+function computeBaseUrl() {
+  // 1) Leer variable de entorno (CRA)
+  const fromCRA =
+    (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || '';
 
-const ESTADOS = {
-  PENDIENTE: 2,
-  APROBADA: 5,
-  RECHAZADA: 6,
-  CANCELADA: 8,
+  // 2) Si metes un global (opcional): window.__API_URL__ = 'https://api...'
+  const fromGlobal =
+    (typeof window !== 'undefined' && window.__API_URL__) || '';
+
+  const fromEnv = String(fromGlobal || fromCRA || '').trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+
+  // 3) Autodetectar: si front corre en 3000/5173, apunta al 5000
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '3000' || port === '5173') return `${protocol}//${hostname}:5000`;
+    return origin.replace(/\/$/, '');
+  }
+
+  // 4) Fallback
+  return 'http://localhost:5000';
+}
+
+const BASE_URL = computeBaseUrl();
+const api = (path) => `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+
+/* ======================
+   Auth headers (Bearer)
+   ====================== */
+function getToken() {
+  try {
+    const keys = ['auth', 'authUser', 'user', 'token', 'jwt'];
+    for (const k of keys) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+
+      if (k === 'token' || k === 'jwt') return raw;
+
+      try {
+        const j = JSON.parse(raw);
+        if (typeof j === 'string') return j;
+        if (j?.access_token) return j.access_token;
+        if (j?.token) return j.token;
+        if (j?.jwt) return j.jwt;
+        if (j?.user?.token) return j.user.token;
+      } catch {
+        // si no es JSON, sigue
+      }
+    }
+  } catch {}
+  return null;
+}
+const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
 };
+
+/* ====================== */
+const ESTADOS = { PENDIENTE: 2, APROBADA: 5, RECHAZADA: 6, CANCELADA: 8 };
 
 function ListadoReservas() {
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState('');
 
-  // Filtros
   const [filtro, setFiltro] = useState({
     fecha: '',
-    tipo: '',        // '', 'inmueble', 'espacio'
-    estado: '',      // '', '2' (Pendiente), '5' (Aprobada), '6' (Rechazada)
-    q: ''            // id / solicitante / recurso
+    tipo: '',   // '', 'inmueble', 'espacio'
+    estado: '', // '', '2','5','6'
+    q: ''
   });
 
-  // Modal edición
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     id_reserva: null,
@@ -39,29 +90,18 @@ function ListadoReservas() {
   const [editError, setEditError] = useState('');
   const [editCtx, setEditCtx] = useState({ esEspacio: false, espacioId: null });
 
-  // ==== Helpers ====
-  const truthy = (v) =>
-    v !== null && v !== undefined && v !== '' && v !== '0' && v !== 0 && v !== 'null';
+  const truthy = (v) => v !== null && v !== undefined && v !== '' && v !== '0' && v !== 0 && v !== 'null';
 
   const toDateOnly = (d) => {
     try {
       const dt = new Date(d);
-      const y = dt.getFullYear();
-      const m = String(dt.getMonth() + 1).padStart(2, '0');
-      const day = String(dt.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    } catch {
-      return '';
-    }
+      return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    } catch { return ''; }
   };
-
   const toTimeLocal = (iso) => {
     const d = new Date(iso);
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   };
-
   const combineISO = (dateStr, hm) => new Date(`${dateStr}T${hm}:00`).toISOString();
 
   const parseJSONorThrowText = async (response) => {
@@ -71,26 +111,19 @@ function ListadoReservas() {
     throw new Error(`Respuesta no-JSON (${response.status}): ${txt.slice(0, 200)}`);
   };
 
-  // ✅ NUEVO: helper para saber si la reserva es de una fecha pasada (por día)
   const esFechaPasada = (reserva) => {
     const base = reserva.fecha || reserva.hora_final || reserva.hora_inicio;
     if (!base) return false;
-
-    const d = new Date(base);
-    const hoy = new Date();
-
-    // Comparamos solo por día (no por hora)
-    d.setHours(0, 0, 0, 0);
-    hoy.setHours(0, 0, 0, 0);
-
-    return d < hoy; // true si la reserva es de un día anterior a hoy
+    const d = new Date(base); const hoy = new Date();
+    d.setHours(0,0,0,0); hoy.setHours(0,0,0,0);
+    return d < hoy;
   };
 
-  // ==== Carga ====
+  /* ===== Carga ===== */
   const cargarReservas = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BASE_URL}/api/reservas/listado`);
+      const response = await fetch(api('/api/reservas/listado'), { headers: { ...authHeaders() } });
       const data = await parseJSONorThrowText(response);
       if (response.ok) {
         setReservas(Array.isArray(data) ? data : []);
@@ -109,20 +142,18 @@ function ListadoReservas() {
 
   useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
-  // ==== Filtros ====
+  /* ===== Filtros ===== */
   const handleFiltroChange = (e) => {
     const { name, value } = e.target;
     setFiltro(prev => ({ ...prev, [name]: value }));
   };
 
-  // 1) Aplica filtros (tipo, fecha, estado, búsqueda)
   const reservasFiltradas = useMemo(() => {
     if (!Array.isArray(reservas)) return [];
     const estadoFiltro = filtro.estado ? Number(filtro.estado) : null;
     const q = filtro.q.trim().toLowerCase();
 
     return reservas.filter((r) => {
-      // tipo
       const esInmueble = truthy(r.inmueble_id) || truthy(r.inmueble_nombre);
       const esEspacio  = truthy(r.espacio_id)  || truthy(r.espacio_nombre);
 
@@ -130,15 +161,13 @@ function ListadoReservas() {
       if (filtro.tipo === 'inmueble') coincideTipo = esInmueble;
       if (filtro.tipo === 'espacio')   coincideTipo = esEspacio;
 
-      // fecha (día de la reserva)
       const baseFecha = r.fecha || r.hora_inicio;
       const coincideFecha = !filtro.fecha ? true : toDateOnly(baseFecha) === filtro.fecha;
 
-      // estado
       const coincideEstado = estadoFiltro == null ? true : Number(r.estado_id) === estadoFiltro;
 
-      // texto (id/solicitante/recurso)
       if (!q) return coincideTipo && coincideFecha && coincideEstado;
+
       const id = String(r.id_reserva || '');
       const solicitante = String(r.solicitante_nombre || '').toLowerCase();
       const recurso = String(r.inmueble_nombre || r.espacio_nombre || '').toLowerCase();
@@ -148,44 +177,39 @@ function ListadoReservas() {
     });
   }, [reservas, filtro]);
 
-  // 2) Tabla: excluimos rechazadas / canceladas
-  //    y además, por defecto, reservas de FECHA PASADA
-  //    👉 PERO si el usuario selecciona una fecha específica (filtro.fecha),
-  //       entonces sí mostramos aunque sea del pasado.
+  // Tabla visible: sin rechazadas/canceladas y sin días pasados (salvo si filtras por fecha)
   const reservasVisibles = useMemo(
     () => reservasFiltradas.filter(r => {
       const estado = Number(r.estado_id);
-
-      // excluir rechazadas y canceladas
       if ([ESTADOS.RECHAZADA, ESTADOS.CANCELADA].includes(estado)) return false;
-
-      // si NO hay filtro de fecha, ocultar las reservas de días pasados
       if (!filtro.fecha && esFechaPasada(r)) return false;
-
       return true;
     }),
-    [reservasFiltradas, filtro.fecha] // ⚠️ importante agregar filtro.fecha a dependencias
+    [reservasFiltradas, filtro.fecha]
   );
 
-  // ==== KPIs (usamos solo las visibles para que cuadre con la tabla) ====
+  /* ===== KPIs (sobre visibles) ===== */
   const kpi = useMemo(() => {
     const base = reservasVisibles;
-    const total = base.length;
-    const pendientes = base.filter(r => Number(r.estado_id) === ESTADOS.PENDIENTE).length;
-    const aprobadas  = base.filter(r => Number(r.estado_id) === ESTADOS.APROBADA).length;
-    const rechazadas = base.filter(r => Number(r.estado_id) === ESTADOS.RECHAZADA).length;
-    return { total, pendientes, aprobadas, rechazadas };
+    return {
+      total: base.length,
+      pendientes: base.filter(r => Number(r.estado_id) === ESTADOS.PENDIENTE).length,
+      aprobadas:  base.filter(r => Number(r.estado_id) === ESTADOS.APROBADA).length,
+      rechazadas: base.filter(r => Number(r.estado_id) === ESTADOS.RECHAZADA).length,
+    };
   }, [reservasVisibles]);
 
-  // ==== Eliminar (cancela a estado 8 en backend) ====
+  /* ===== Eliminar (DELETE → backend la marca Cancelada=8) ===== */
   const handleEliminarReserva = async (idReserva) => {
     if (!window.confirm('¿Eliminar esta reserva de forma permanente?')) return;
     try {
-      const response = await fetch(`${BASE_URL}/api/reservas/${idReserva}`, { method: 'DELETE' });
+      const response = await fetch(api(`/api/reservas/${idReserva}`), {
+        method: 'DELETE',
+        headers: { ...authHeaders() },
+      });
       const data = await parseJSONorThrowText(response);
       if (response.ok) {
         setMensaje('✅ Reserva cancelada correctamente');
-        // reflejar en memoria (la tabla la ocultará)
         setReservas(prev => prev.map(r =>
           r.id_reserva === idReserva
             ? { ...r, estado_id: ESTADOS.CANCELADA, estado_nombre: 'Cancelada' }
@@ -199,7 +223,7 @@ function ListadoReservas() {
     }
   };
 
-  // ==== Validaciones (modal) ====
+  /* ===== Validaciones / Edición ===== */
   const validateRange = (fi, hi, ff, hf) => {
     if (!fi || !hi || !ff || !hf) return { ok: false, msg: 'Completa fecha y horas.' };
     const start = new Date(combineISO(fi, hi));
@@ -209,14 +233,14 @@ function ListadoReservas() {
     return { ok: true, startISO: start.toISOString(), endISO: end.toISOString(), startDate: fi };
   };
 
-  // Solo valida solapes para ESPACIOS (bloquean horarios) y solo con reservas APROBADAS (5)
+  // Solo valida solapes para ESPACIOS
   const validateOverlapIfEspacio = async (esEspacio, espacioId, startISO, endISO, excludeId) => {
     if (!esEspacio || !espacioId) return { ok: true };
     try {
-      const url = `${BASE_URL}/api/reservas/espacios/ocupado/${espacioId}`
+      const url = api(`/api/reservas/espacios/ocupado/${espacioId}`)
         + `?inicio=${encodeURIComponent(startISO)}&fin=${encodeURIComponent(endISO)}`
         + `&soloVigentes=1&exclude=${excludeId}`;
-      const r = await fetch(url);
+      const r = await fetch(url, { headers: { ...authHeaders() } });
       if (r.status === 404) return { ok: true };
       const d = await parseJSONorThrowText(r);
       if (!r.ok) return { ok: false, msg: d?.error || 'Error verificando ocupación.' };
@@ -227,7 +251,6 @@ function ListadoReservas() {
     }
   };
 
-  // ==== Editar ====
   const handleEditarClick = (reserva) => {
     const fi = toDateOnly(reserva.hora_inicio);
     const ff = toDateOnly(reserva.hora_final);
@@ -269,9 +292,9 @@ function ListadoReservas() {
     if (!overlap.ok) { setEditError(overlap.msg); return; }
 
     try {
-      const response = await fetch(`${BASE_URL}/api/reservas/${id_reserva}`, {
+      const response = await fetch(api(`/api/reservas/${id_reserva}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           fecha: range.startDate,
           hora_inicio: range.startISO,
@@ -316,7 +339,7 @@ function ListadoReservas() {
     }
   };
 
-  // ==== Render ====
+  /* ===== Render ===== */
   if (loading) {
     return (
       <div className="listado-reservas-container">
@@ -419,7 +442,7 @@ function ListadoReservas() {
         </div>
       </div>
 
-      {/* Tabla (sin rechazadas ni canceladas ni fechas pasadas, salvo si filtro.fecha) */}
+      {/* Tabla */}
       <div className="tabla-container">
         <div className="tabla-wrapper">
           <table className="tabla-reservas">

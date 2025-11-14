@@ -1,8 +1,10 @@
+// src/components/RegistrarPago.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import html2pdf from 'html2pdf.js';
 import '../styles/RegistrarPago.css';
+import { getJSON } from '../utils/api';
 
-const LOGO_SRC = '/img/LogoSJP.jpg'; // pon tu logo en public/img/muni-logo.png
+const LOGO_SRC = '/img/LogoSJP.jpg'; // pon tu logo en public/img/LogoSJP.jpg
 
 export default function RegistrarPago() {
   const [pagos, setPagos] = useState([]);
@@ -19,15 +21,15 @@ export default function RegistrarPago() {
   const fmtHora = (d) =>
     d ? new Date(d).toLocaleTimeString('es-GT', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '-';
 
-  // ===== Cargar historial =====
+  // ===== Cargar historial (ahora usando getJSON, sin localhost) =====
   const fetchPagos = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/pagos/listado');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPagos(Array.isArray(data) ? data : []);
+      const data = await getJSON('/api/pagos/listado');
+      // puede venir como array o {items:[]}
+      const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      setPagos(arr);
     } catch (err) {
       console.error('Error cargando pagos:', err);
       setError('No se pudo obtener el historial de pagos.');
@@ -36,6 +38,7 @@ export default function RegistrarPago() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchPagos();
   }, []);
@@ -48,8 +51,15 @@ export default function RegistrarPago() {
       const idPago = String(safe(p.id_pago, ''));
       const idReserva = String(safe(p.reserva_id_reserva, ''));
       const recurso = String(safe(p.recurso_nombre, '')).toLowerCase();
+      const tipo = String(safe(p.recurso_tipo, '')).toLowerCase();
       const referencia = String(safe(p.p_referencia, '')).toLowerCase();
-      return idPago.includes(q) || idReserva.includes(q) || recurso.includes(q) || referencia.includes(q);
+      return (
+        idPago.includes(q) ||
+        idReserva.includes(q) ||
+        recurso.includes(q) ||
+        tipo.includes(q) ||
+        referencia.includes(q)
+      );
     });
   }, [pagos, busqueda]);
 
@@ -205,7 +215,7 @@ export default function RegistrarPago() {
             <label className="label-busqueda">🔍 Buscar</label>
             <input
               className="input-busqueda"
-              placeholder="N° pago, N° reserva, recurso o referencia…"
+              placeholder="N° pago, N° reserva, recurso, tipo o referencia…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />

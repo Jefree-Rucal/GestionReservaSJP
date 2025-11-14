@@ -2,42 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import '../styles/CrearReserva.css';
 import { generarReservaPDF } from '../utils/generarReservaPDF';
-
-// ======= Constantes/Utils fuera del componente =======
-const BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-
-// Helper para obtener el token guardado en localStorage
-const getToken = () => {
-  // Probamos varios formatos / claves, igual que hace el Dashboard con el usuario
-  const candidateKeys = ['auth', 'user', 'authUser'];
-
-  for (const key of candidateKeys) {
-    const raw = localStorage.getItem(key);
-    if (!raw) continue;
-
-    try {
-      const parsed = JSON.parse(raw);
-
-      // Si es string puro
-      if (typeof parsed === 'string') return parsed;
-
-      // Formato típico: { access_token, user: {...} }
-      if (parsed.access_token) return parsed.access_token;
-      if (parsed.token) return parsed.token;
-      if (parsed.jwt) return parsed.jwt;
-    } catch {
-      // Si no se pudo parsear, seguimos
-    }
-  }
-
-  // Fallback a claves "planas"
-  return (
-    localStorage.getItem('token') ||
-    localStorage.getItem('jwt') ||
-    null
-  );
-};
-
+import { getJSON, postJSON } from '../utils/api';
 
 // Regex de validación
 const RE_NOMBRE = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{3,80}$/;
@@ -52,19 +17,13 @@ const toLocalInputValue = (d = new Date()) => {
 };
 
 // ===== Conversores auxiliares =====
-async function parseJSONorThrowText(response) {
-  const ct = response.headers.get('content-type') || '';
-  if (ct.includes('application/json')) return await response.json();
-  const txt = await response.text();
-  throw new Error(`Respuesta no-JSON (${response.status}): ${txt.slice(0, 200)}`);
-}
 const toISO      = (localDT) => (!localDT ? '' : (isNaN(new Date(localDT)) ? '' : new Date(localDT).toISOString()));
 const getDateStr = (iso) => (iso || '').split('T')[0] || '';
 
 // Convierte "YYYY-MM-DDTHH:MM" -> "YYYY-MM-DD HH:MM:00" (local, sin Z)
 function toLocalSQL(localDT) {
   if (!localDT) return '';
-  const [d, t] = String(localDT).split('T'); // ej. "2025-11-18","07:00"
+  const [d, t] = String(localDT).split('T');
   return `${d} ${t}:00`;
 }
 
@@ -72,7 +31,7 @@ function toLocalSQL(localDT) {
 const getEstadoEspacio = (raw) =>
   Number(
     raw?.estado_id ??
-    raw?.e_estado_id_estadoe ??  // posibles alias desde la BD
+    raw?.e_estado_id_estadoe ??
     raw?.e_estado_id_estador ??
     1
   );
@@ -94,8 +53,6 @@ const esConflictoVigente = (c) => {
   return true;
 };
 
-// =====================================================
-
 function CrearReserva() {
   const [formData, setFormData] = useState({
     nombre: '', dpi: '', telefono: '', correo: '',
@@ -115,8 +72,8 @@ function CrearReserva() {
   const [tarifas, setTarifas] = useState([]);
   
   // === Autocompletar solicitante ===
-  const [sugs, setSugs] = useState([]);           // sugerencias de nombres
-  const [qNombre, setQNombre] = useState('');     // lo que escribe el usuario
+  const [sugs, setSugs] = useState([]);
+  const [qNombre, setQNombre] = useState('');
   const [loadingSugs, setLoadingSugs] = useState(false);
   const [lookupBusy, setLookupBusy] = useState(false);
 
@@ -155,52 +112,41 @@ function CrearReserva() {
   }, [formData.hora_inicio, minAhora]);
 
   // Cargar catálogos (1 sola vez)
-// Cargar catálogos (1 sola vez)
- // Cargar catálogos (1 sola vez)
-useEffect(() => {
-  (async () => {
-    try {
-      const [resEsp, resInm, resTar] = await Promise.all([
-        fetch(`${BASE_URL}/api/catalogos/espacios`),
-        fetch(`${BASE_URL}/api/catalogos/inmuebles`),
-        fetch(`${BASE_URL}/api/tarifas/listado`)
-      ]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [esp, inm, tarMaybe] = await Promise.all([
+          getJSON('/api/catalogos/espacios'),
+          getJSON('/api/catalogos/inmuebles'),
+          getJSON('/api/tarifas/listado').catch(() => [])
+        ]);
 
-      const [esp, inm, tarMaybe] = await Promise.all([
-        resEsp.json(),
-        resInm.json(),
-        resTar.ok ? resTar.json() : Promise.resolve([])
-      ]);
+        // 🔹 SOLO ESPACIOS ACTIVOS (estado_id = 1)
+        const espaciosActivos = Array.isArray(esp)
+          ? esp.filter((e) => getEstadoEspacio(e) === 1)
+          : [];
+        setEspacios(espaciosActivos);
 
-      // 🔹 SOLO ESPACIOS ACTIVOS (estado_id = 1)
-      const espaciosActivos = Array.isArray(esp)
-        ? esp.filter((e) => getEstadoEspacio(e) === 1)
-        : [];
-      setEspacios(espaciosActivos);
+        // 🔹 Solo INMUEBLES activos (estado 1). 7 = inactivo se excluye.
+        const inmueblesActivos = Array.isArray(inm)
+          ? inm.filter((i) => {
+              const est = Number(
+                i.estado_id ??
+                i.id_estado ??
+                i.i_estado_id_estadoi ??
+                i.i_estado_id_estador
+              );
+              return !est || est === 1;
+            })
+          : [];
+        setInmuebles(inmueblesActivos);
 
-      // 🔹 Solo INMUEBLES activos (estado 1). 7 = inactivo se excluye.
-      const inmueblesActivos = Array.isArray(inm)
-        ? inm.filter((i) => {
-            const est = Number(
-              i.estado_id ??
-              i.id_estado ??
-              i.i_estado_id_estadoi ??
-              i.i_estado_id_estador
-            );
-            // si no trae estado, lo consideramos activo por compatibilidad
-            return !est || est === 1;
-          })
-        : [];
-      setInmuebles(inmueblesActivos);
-
-      setTarifas(Array.isArray(tarMaybe) ? tarMaybe : []);
-    } catch {
-      showBanner('error', 'Error cargando catálogos');
-    }
-  })();
-}, [showBanner]);
-
-
+        setTarifas(Array.isArray(tarMaybe) ? tarMaybe : []);
+      } catch {
+        showBanner('error', 'Error cargando catálogos');
+      }
+    })();
+  }, [showBanner]);
 
   // Disponibilidad Inmuebles
   useEffect(() => {
@@ -208,14 +154,9 @@ useEffect(() => {
     setMaxCantidad(1);
     if (!inmueble_id) return;
 
-    const ac = new AbortController();
     (async () => {
       try {
-        const url = `${BASE_URL}/api/catalogos/inmuebles/stock/${inmueble_id}`;
-        const resp = await fetch(url, { signal: ac.signal });
-        const data = await parseJSONorThrowText(resp);
-        if (!resp.ok) throw new Error(data?.error || 'Error stock');
-
+        const data = await getJSON(`/api/catalogos/inmuebles/stock/${inmueble_id}`);
         const disponible = Number(data?.cantidad_disponible ?? 0);
         setDisponibilidad({ cantidad_disponible: disponible });
         setMaxCantidad(disponible);
@@ -229,14 +170,11 @@ useEffect(() => {
           return prev;
         });
       } catch (err) {
-        if (err?.name === 'AbortError') return;
         showBanner('error', 'Error al obtener stock del inmueble');
         setMaxCantidad(0);
         setDisponibilidad({ cantidad_disponible: 0 });
       }
     })();
-
-    return () => ac.abort();
   }, [inmueble_id, showBanner]);
 
   // Solapamientos ESPACIOS: ignora canceladas/rechazadas
@@ -244,29 +182,23 @@ useEffect(() => {
     setConflictosEspacio([]);
     if (!espacio_id || !rangoValido) return;
 
-    const ac = new AbortController();
     (async () => {
       try {
-        const url = `${BASE_URL}/api/reservas/espacios/ocupado/${espacio_id}?inicio=${encodeURIComponent(isoInicio)}&fin=${encodeURIComponent(isoFin)}&soloVigentes=1`;
-        const resp = await fetch(url, { signal: ac.signal });
-        if (resp.status === 404) return setConflictosEspacio([]);
-
-        const data = await parseJSONorThrowText(resp);
-        if (!resp.ok) {
-          showBanner('error', data?.error || 'Error al verificar ocupación del espacio');
-          return;
-        }
-
+        const data = await getJSON(
+          `/api/reservas/espacios/ocupado/${espacio_id}?inicio=${encodeURIComponent(isoInicio)}&fin=${encodeURIComponent(isoFin)}&soloVigentes=1`
+        );
         const crudos = Array.isArray(data?.conflictos) ? data.conflictos : [];
         const vigentes = crudos.filter(esConflictoVigente);
         setConflictosEspacio(vigentes);
       } catch (err) {
-        if (err?.name === 'AbortError') return;
-        showBanner('error', 'Error de conexión al verificar ocupación del espacio');
+        // Si el endpoint responde 404, lo tratamos como "sin conflictos"
+        if (String(err?.message || '').startsWith('HTTP 404')) {
+          setConflictosEspacio([]);
+        } else {
+          showBanner('error', 'Error de conexión al verificar ocupación del espacio');
+        }
       }
     })();
-
-    return () => ac.abort();
   }, [espacio_id, rangoValido, isoInicio, isoFin, showBanner]);
 
   // Handlers
@@ -303,7 +235,6 @@ useEffect(() => {
     if (name === 'nombre') {
       const limpio = value.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
       setQNombre(limpio);
-      // si el nombre queda vacío, limpiar DPI/teléfono/correo
       if (limpio.trim() === '') {
         setFormData(p => ({ ...p, nombre: '', dpi: '', telefono: '', correo: '' }));
         return;
@@ -345,12 +276,12 @@ useEffect(() => {
 
     try {
       setLookupBusy(true);
-      const r = await fetch(`${BASE_URL}/api/solicitante/lookup?nombre=${encodeURIComponent(nombreLimpio)}`);
-      if (r.status === 404) return;
-      const data = await parseJSONorThrowText(r);
-      if (!r.ok || !data) return;
+      const data = await getJSON(`/api/solicitante/lookup?nombre=${encodeURIComponent(nombreLimpio)}`).catch((err) => {
+        if (String(err?.message || '').startsWith('HTTP 404')) return null;
+        throw err;
+      });
+      if (!data) return;
 
-      // Rellenar directo (sin confirm). Si ya hay datos, se sobrescriben.
       setFormData(prev => ({
         ...prev,
         dpi:      data?.dpi      || '',
@@ -366,11 +297,10 @@ useEffect(() => {
 
   const handleNombreKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault(); // evita submit del form
+      e.preventDefault();
       buscarPorNombre(e.currentTarget.value);
     }
     if (e.key === 'Tab') {
-      // NO hacemos preventDefault para permitir cambiar de foco
       buscarPorNombre(e.currentTarget.value);
     }
   };
@@ -390,15 +320,17 @@ useEffect(() => {
   // Preflight con el mismo filtro de conflictos (ignora canceladas/rechazadas)
   const preflightOverlap = useCallback(async () => {
     if (espacio_id) {
-      const r = await fetch(
-        `${BASE_URL}/api/reservas/espacios/ocupado/${espacio_id}?inicio=${encodeURIComponent(isoInicio)}&fin=${encodeURIComponent(isoFin)}&soloVigentes=1`
-      );
-      if (r.status !== 404) {
-        const d = await parseJSONorThrowText(r);
-        if (!r.ok) throw new Error(d?.error || 'Error validando ocupación de espacio');
+      try {
+        const d = await getJSON(
+          `/api/reservas/espacios/ocupado/${espacio_id}?inicio=${encodeURIComponent(isoInicio)}&fin=${encodeURIComponent(isoFin)}&soloVigentes=1`
+        );
         const crudos = Array.isArray(d?.conflictos) ? d.conflictos : [];
         const vigentes = crudos.filter(esConflictoVigente);
         if (vigentes.length > 0) return { ok: false, msg: 'El espacio ya está reservado en el rango seleccionado.' };
+      } catch (err) {
+        if (!String(err?.message || '').startsWith('HTTP 404')) {
+          throw err;
+        }
       }
     }
     if (inmueble_id) {
@@ -436,24 +368,19 @@ useEffect(() => {
     const q = (qNombre || '').trim();
     if (q.length < 2) { setSugs([]); return; }
 
-    const ac = new AbortController();
     setLoadingSugs(true);
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(
-          `${BASE_URL}/api/solicitante/sugerencias?q=${encodeURIComponent(q)}`,
-          { signal: ac.signal }
-        );
-        const data = await r.json().catch(() => []);
+        const data = await getJSON(`/api/solicitante/sugerencias?q=${encodeURIComponent(q)}`).catch(() => []);
         setSugs(Array.isArray(data) ? data : []);
       } catch {
-        /* silencio */
+        // silencio
       } finally {
         setLoadingSugs(false);
       }
     }, 250);
 
-    return () => { ac.abort(); clearTimeout(t); };
+    return () => { clearTimeout(t); };
   }, [qNombre]);
 
   // Nombres auxiliares
@@ -488,7 +415,7 @@ useEffect(() => {
       return showBanner('error', err.message || 'No se pudo validar la disponibilidad.');
     }
 
-        const payload = {
+    const payload = {
       solicitante: {
         nombre: nombre.trim(),
         dpi: dpi.trim(),
@@ -500,7 +427,7 @@ useEffect(() => {
         hora_inicio: toLocalSQL(formData.hora_inicio),
         hora_final:  toLocalSQL(formData.hora_final),
         motivo: motivo.trim(),
-        // 👇 Ya NO mandamos usuario_id, el backend lo saca del token (req.user.id)
+        // El backend obtiene usuario_id del token (el helper añade Authorization si existe)
         espacio_id:  espacio_id  ? parseInt(espacio_id, 10)  : null,
         inmueble_id: inmueble_id ? parseInt(inmueble_id, 10) : null,
         cantidad:    inmueble_id ? parseInt(cantidad || '0', 10) : 1,
@@ -508,26 +435,8 @@ useEffect(() => {
       }
     };
 
-
-        try {
-      const token = getToken();
-      console.log('🔑 Token que se enviará:', token); // puedes quitar este log luego
-
-      const response = await fetch(`${BASE_URL}/api/reservas/crear`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await parseJSONorThrowText(response);
-
-
-
-      if (!response.ok) return showBanner('error', 'Error al crear reserva: ' + (data?.error || 'Desconocido'));
-
+    try {
+      const data = await postJSON('/api/reservas/crear', payload);
       showBanner('success', 'Reserva creada correctamente');
 
       const idReserva =
@@ -550,7 +459,7 @@ useEffect(() => {
 
       resetFormulario();
       // refresco rápido de inmuebles
-      fetch(`${BASE_URL}/api/catalogos/inmuebles`).then(r => r.json()).then(setInmuebles).catch(()=>{});
+      getJSON('/api/catalogos/inmuebles').then(setInmuebles).catch(()=>{});
     } catch (err) {
       console.error('Error al conectar:', err);
       showBanner('error', 'No se pudo conectar con el servidor');
@@ -605,7 +514,7 @@ useEffect(() => {
                   list="sugs-nombres"
                   placeholder="Ej. María Pérez"
                   onChange={handleChange}
-                  onKeyDown={handleNombreKeyDown}   // ENTER/TAB disparan lookup
+                  onKeyDown={handleNombreKeyDown}
                   value={formData.nombre}
                   required
                   inputMode="text"
@@ -617,7 +526,6 @@ useEffect(() => {
                     <option key={s.id || s.ID || s.id_solitante} value={s.nombre || s.s_nombrec} />
                   ))}
                 </datalist>
-
               </label>
 
               <label>DPI
@@ -758,12 +666,7 @@ useEffect(() => {
           {/* Acciones */}
           <div className="cr-actions">
             <button type="button" className="btn-secondary" onClick={resetFormulario}>Limpiar</button>
-            <button type="submit" disabled={
-              (soloInmueble && (maxCantidad <= 0 || !cantidad || Number(cantidad) < 1)) ||
-              (soloEspacio && conflictosEspacio.length > 0) ||
-              !rangoValido ||
-              (!!tarifaAplicable && !aceptaPago)
-            }>Reservar</button>
+            <button type="submit" disabled={botonDeshabilitado}>Reservar</button>
           </div>
         </form>
 

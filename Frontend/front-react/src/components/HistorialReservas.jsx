@@ -1,12 +1,39 @@
+// src/components/HistorialReservas.jsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import '../styles/HistorialReservas.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoSJP from '../Imagenes/LogoSJP.jpg';
 
+// ===== Base URL dinámica (sin localhost hardcodeado) =====
+const BASE_URL = (() => {
+  const env = (process.env.REACT_APP_API_URL || '').trim();
+  if (env) return env.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '3000') return `${protocol}//${hostname}:5000`; // dev: CRA → API 5000
+    return origin.replace(/\/$/, ''); // prod: mismo host
+  }
+  return 'http://localhost:5000';
+})();
+const api = (path) => `${BASE_URL}${path}`;
 
-const API_BASE = 'http://localhost:5000';
-const api = (path) => `${API_BASE}${path}`;
+const getToken = () => {
+  const keys = ['auth', 'user', 'authUser'];
+  for (const k of keys) {
+    const raw = localStorage.getItem(k);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') return parsed;
+      if (parsed.access_token) return parsed.access_token;
+      if (parsed.token) return parsed.token;
+      if (parsed.jwt) return parsed.jwt;
+      if (parsed?.user?.token) return parsed.user.token;
+    } catch {}
+  }
+  return localStorage.getItem('token') || localStorage.getItem('jwt') || null;
+};
 
 const ESTADOS = { PENDIENTE: 2, APROBADA: 5, RECHAZADA: 6, CANCELADA: 8 };
 
@@ -24,7 +51,7 @@ export default function HistorialReservas() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [tipo, setTipo] = useState('');       // '', 'inmueble', 'espacio'
-  const [estado, setEstado] = useState('');   // '', '2','5','6'
+  const [estado, setEstado] = useState('');   // '', '2','5','6','8'
   const [q, setQ] = useState('');
   const [orden, setOrden] = useState('recientes');
 
@@ -40,7 +67,6 @@ export default function HistorialReservas() {
   // Logo para PDF
   const [logoDataUrl, setLogoDataUrl] = useState(null);
 
-  // Helpers
   const showBanner = useCallback((type, text, ms = 3000) => {
     setBanner({ type, text });
     if (ms) setTimeout(() => setBanner({ type: null, text: '' }), ms);
@@ -86,7 +112,6 @@ export default function HistorialReservas() {
     if (estado) p.set('estado', estado);
     if (qDebounced) p.set('q', qDebounced);
     if (orden) p.set('orden', orden);
-    // Traer todas las reservas (sin límite)
     p.set('pageSize', '9999');
     return p.toString();
   }, [desde, hasta, tipo, estado, qDebounced, orden]);
@@ -94,27 +119,45 @@ export default function HistorialReservas() {
   // Carga
   useEffect(() => {
     let abort = false;
+    const controller = new AbortController();
+
     (async () => {
+      // Validación del rango
+      if (desde && hasta && new Date(desde) > new Date(hasta)) {
+        setItems([]); setTotal(0);
+        showBanner('error', 'El rango de fechas es inválido (Desde no puede ser mayor que Hasta).');
+        return;
+      }
+
       try {
         setLoading(true);
-        const resp = await fetch(api(`/api/reservas/historial?${qs}`));
+        const token = getToken();
+        const resp = await fetch(api(`/api/reservas/historial?${qs}`), {
+          signal: controller.signal,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
         const data = await parseJSONorThrowText(resp);
         if (!resp.ok) throw new Error(data?.error || 'Error al cargar historial');
+
         if (!abort) {
-          setItems(Array.isArray(data.items) ? data.items : []);
-          setTotal(Number(data.total || 0));
+          const arr = Array.isArray(data.items) ? data.items : [];
+          setItems(arr);
+          setTotal(Number(data.total || arr.length || 0));
         }
       } catch (err) {
         if (!abort) {
           setItems([]); setTotal(0);
-          showBanner('error', err.message || 'Error al cargar historial');
+          if (err.name !== 'AbortError') showBanner('error', err.message || 'Error al cargar historial');
         }
       } finally {
         if (!abort) setLoading(false);
       }
     })();
-    return () => { abort = true; };
-  }, [qs, parseJSONorThrowText, showBanner]);
+
+    return () => { abort = true; controller.abort(); };
+  }, [qs, parseJSONorThrowText, showBanner, desde, hasta]);
 
   // Helpers de formato
   const resetFiltros = () => {
@@ -146,7 +189,7 @@ export default function HistorialReservas() {
     if (['espacio', 'espacios', 'e', '2'].includes(v)) return 'espacio';
     return '';
   };
-  const tipoLabel = (t) => (normTipo(t) === 'inmueble' ? 'Inmueble' : normTipo(t) === 'espacio' ? 'Espacio' : '—');
+  const tipoLabel = (t) => (normTipo(t) === 'inmueble' ? 'Muebles' : normTipo(t) === 'espacio' ? 'Espacios Públicos' : '—');
 
   // ===========================
   // Exportar tabla (PDF)
@@ -216,7 +259,7 @@ export default function HistorialReservas() {
         fecha: { cellWidth: 22 },
         inicio: { cellWidth: 18 },
         fin: { cellWidth: 18 },
-        tipo: { cellWidth: 22 },
+        tipo: { cellWidth: 30 },
         recurso: { cellWidth: 58 },
         solicitante: { cellWidth: 48 },
         estado: { cellWidth: 26 },
@@ -229,13 +272,16 @@ export default function HistorialReservas() {
   };
 
   // ===========================
-  // Recibo (layout centrado y limpio)
+  // Recibo (centrado y limpio)
   // ===========================
   async function generarRecibo(r) {
     // 1) Traer detalle completo
     let extra = {};
     try {
-      const resp = await fetch(api(`/api/reservas/detalle/${r.id_reserva}`));
+      const token = getToken();
+      const resp = await fetch(api(`/api/reservas/detalle/${r.id_reserva}`), {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
       if (resp.ok) extra = (await resp.json()) || {};
     } catch {}
 
@@ -251,7 +297,7 @@ export default function HistorialReservas() {
     const _toLocalDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : '—');
     const _toLocalTime = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
 
-    // 3) Datos (igualando la plantilla de CrearReserva)
+    // 3) Datos
     const solicitante = getFirst(extra.solicitante_nombre, r.solicitante_nombre);
     const dpi         = getFirst(extra.solicitante_dpi, r.solicitante_dpi);
     const tel         = getFirst(extra.solicitante_telefono, r.solicitante_telefono);
@@ -273,34 +319,28 @@ export default function HistorialReservas() {
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
 
-    // Márgenes más equilibrados
     const M = { t: 18, l: 16, r: 16 };
     const contentW = W - M.l - M.r;
 
-    // Encabezado (barra azul centrada)
+    // Encabezado
     doc.setFillColor(10, 63, 130);
     doc.rect(0, 0, W, 26, 'F');
 
-    // Logo
     try { if (logoDataUrl) doc.addImage(logoDataUrl, 'JPEG', M.l, 3, 20, 20); } catch {}
 
-    // Títulos
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(14);
     doc.text('Municipalidad de San José Pinula', M.l + 26, 10);
     doc.setFont('helvetica','normal'); doc.setFontSize(10);
     doc.text('Dirección Financiera — Tesorería Municipal', M.l + 26, 16);
 
-    // Datos arriba a la derecha
     doc.setFont('helvetica','bold'); doc.setFontSize(10);
     doc.text(`Reserva N.º: ${r.id_reserva}`, W - M.r, 8, { align: 'right' });
     doc.setFont('helvetica','normal');
     doc.text(`Fecha emisión: ${new Date().toLocaleDateString()}`, W - M.r, 14, { align: 'right' });
 
-    // Restablecer color
     doc.setTextColor(0,0,0);
 
-    // Helper: cabecera de sección
     const sectionHeader = (title, y) => {
       doc.setFont('helvetica','bold'); doc.setFontSize(12);
       doc.setDrawColor(230); doc.setFillColor(248);
@@ -309,11 +349,9 @@ export default function HistorialReservas() {
       return y + 12;
     };
 
-    // Ancho de columnas de la tabla (etiqueta/valor)
-    const labelW = 44; // ancho cómodo para etiquetas largas
+    const labelW = 44;
     const tableWidth = contentW;
 
-    // 5) Sección: Datos de la reserva
     let y = sectionHeader('Datos de la reserva', M.t + 12);
     autoTable(doc, {
       startY: y,
@@ -321,10 +359,7 @@ export default function HistorialReservas() {
       styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.5 },
       margin: { left: M.l, right: M.r },
       tableWidth,
-      columnStyles: {
-        0: { cellWidth: labelW, fontStyle: 'bold' },
-        1: { cellWidth: tableWidth - labelW }
-      },
+      columnStyles: { 0: { cellWidth: labelW, fontStyle: 'bold' }, 1: { cellWidth: tableWidth - labelW } },
       body: [
         ['N° de Reserva', `#${r.id_reserva}`],
         ['Estado', estadoNom],
@@ -336,7 +371,6 @@ export default function HistorialReservas() {
     });
     y = doc.lastAutoTable.finalY + 8;
 
-    // 6) Sección: Recurso y horario
     y = sectionHeader('Recurso y horario', y);
     autoTable(doc, {
       startY: y,
@@ -344,10 +378,7 @@ export default function HistorialReservas() {
       styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.5 },
       margin: { left: M.l, right: M.r },
       tableWidth,
-      columnStyles: {
-        0: { cellWidth: labelW, fontStyle: 'bold' },
-        1: { cellWidth: tableWidth - labelW }
-      },
+      columnStyles: { 0: { cellWidth: labelW, fontStyle: 'bold' }, 1: { cellWidth: tableWidth - labelW } },
       body: [
         ['Recurso', String(recurso)],
         ['Fecha inicio', String(fechaInicio)],
@@ -359,7 +390,6 @@ export default function HistorialReservas() {
     });
     y = doc.lastAutoTable.finalY + 8;
 
-    // 7) Sección: Motivo de uso
     y = sectionHeader('Motivo de uso', y);
     autoTable(doc, {
       startY: y,
@@ -367,21 +397,14 @@ export default function HistorialReservas() {
       styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.5 },
       margin: { left: M.l, right: M.r },
       tableWidth,
-      columnStyles: {
-        0: { cellWidth: labelW, fontStyle: 'bold' },
-        1: { cellWidth: tableWidth - labelW }
-      },
-      body: [
-        ['Motivo', String(motivo)]
-      ]
+      columnStyles: { 0: { cellWidth: labelW, fontStyle: 'bold' }, 1: { cellWidth: tableWidth - labelW } },
+      body: [['Motivo', String(motivo)]]
     });
 
-    // Footer
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
     doc.setTextColor(110);
     doc.text('© 2025 Municipalidad de San José Pinula — Documento generado electrónicamente', M.l, H - 10);
 
-    // Guardar
     doc.save(`reserva_${r.id_reserva}.pdf`);
   }
 
@@ -416,12 +439,12 @@ export default function HistorialReservas() {
         <div className="grupo">
           <label>Estado</label>
           <select value={estado} onChange={(e)=> setEstado(e.target.value)}>
-          <option value="">Todos</option>
-          <option value="2">Pendiente</option>
-          <option value="5">Aprobada</option>
-          <option value="6">Rechazada</option>
-          <option value="8">Cancelada</option> 
-        </select>
+            <option value="">Todos</option>
+            <option value="2">Pendiente</option>
+            <option value="5">Aprobada</option>
+            <option value="6">Rechazada</option>
+            <option value="8">Cancelada</option>
+          </select>
         </div>
         <div className="grupo grow">
           <label>Buscar</label>

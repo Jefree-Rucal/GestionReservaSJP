@@ -4,12 +4,29 @@
 // - Si existe REACT_APP_API_URL, úsalo.
 // - Si el front corre en :3000 (dev), usa http://localhost:5000.
 // - En producción (build servido por el backend), usa mismo origen: ''.
-const BASE_URL = (process.env.REACT_APP_API_URL || window.location.origin).replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location && window.location.port === '3000') {
-    return 'http://localhost:5000';
+// === Base de la API: dev vs prod (iPad/otros equipos) ===
+const API_BASE_URL = (() => {
+  const env = (process.env.REACT_APP_API_URL || '').trim();
+  if (env) return env.replace(/\/$/, '');
+
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+
+    // Dev server (React) en :3000
+    if (port === '3000') {
+      // Usar el mismo hostname de la URL actual, pero con puerto 5000
+      // Esto permite que el iPad/otro equipo acceda: http://TU_IP:3000 -> API en http://TU_IP:5000
+      return `${protocol}//${hostname}:5000`;
+    }
+
+    // Producción: mismo origen (backend sirve el build)
+    return origin.replace(/\/$/, '');
   }
-  return ''; // mismo origen (backend sirve el front)
+
+  // Fallback
+  return 'http://localhost:5000';
 })();
+
 
 console.log('🔧 API Base URL:', API_BASE_URL || '(same-origin)');
 

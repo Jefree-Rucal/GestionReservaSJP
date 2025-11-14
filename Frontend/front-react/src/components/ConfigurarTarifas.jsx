@@ -1,22 +1,16 @@
+// src/components/ConfigurarTarifas.jsx
 import React, { useState, useEffect } from 'react';
 import '../styles/ConfigurarTarifas.css';
-
-const API = 'http://localhost:5000';
+import { getJSON, postJSON, putJSON, deleteJSON } from '../utils/api';
 
 //
 // Helpers para tolerar distintos shapes de catálogos (id/nombre vs id_inmueble/i_nombre, etc.)
 //
-const getIdFrom = (obj, tipo) => (
-  tipo === 'inmueble'
-    ? (obj.id_inmueble ?? obj.id)
-    : (obj.id_espacio ?? obj.id)
-);
+const getIdFrom = (obj, tipo) =>
+  tipo === 'inmueble' ? (obj.id_inmueble ?? obj.id) : (obj.id_espacio ?? obj.id);
 
-const getNombreFrom = (obj, tipo) => (
-  tipo === 'inmueble'
-    ? (obj.i_nombre ?? obj.nombre)
-    : (obj.e_nombre ?? obj.nombre)
-);
+const getNombreFrom = (obj, tipo) =>
+  tipo === 'inmueble' ? (obj.i_nombre ?? obj.nombre) : (obj.e_nombre ?? obj.nombre);
 
 function ConfigurarTarifas() {
   const [tarifas, setTarifas] = useState([]);
@@ -33,20 +27,8 @@ function ConfigurarTarifas() {
     monto: '',
     tipo_recurso: '', // 'inmueble' o 'espacio'
     recurso_id: '',
-    estado_id: '1'   // 1 = Activo
+    estado_id: '1',   // 1 = Activo
   });
-
-  // GET helper robusto
-  const getJSON = async (url) => {
-    const r = await fetch(url);
-    let data = null;
-    try { data = await r.json(); } catch { /* ignore */ }
-    if (!r.ok) {
-      const msg = (data && data.error) || `Error ${r.status} en ${url}`;
-      throw new Error(msg);
-    }
-    return data;
-  };
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -57,11 +39,10 @@ function ConfigurarTarifas() {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-
       const [inmueblesData, espaciosData, tarifasData] = await Promise.all([
-        getJSON(`${API}/api/catalogos/inmuebles`),
-        getJSON(`${API}/api/catalogos/espacios`),
-        getJSON(`${API}/api/tarifas`)
+        getJSON('/api/catalogos/inmuebles'),
+        getJSON('/api/catalogos/espacios'),
+        getJSON('/api/tarifas'),
       ]);
 
       setInmuebles(Array.isArray(inmueblesData) ? inmueblesData : []);
@@ -70,7 +51,7 @@ function ConfigurarTarifas() {
       setMensaje('');
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      setMensaje('❌ ' + error.message);
+      setMensaje('❌ ' + (error?.message || 'No se pudo cargar'));
       setTarifas([]);
     } finally {
       setLoading(false);
@@ -81,7 +62,7 @@ function ConfigurarTarifas() {
   const getNombreRecurso = (tipo, id, fallbackDelListado) => {
     if (fallbackDelListado) return fallbackDelListado;
     const lista = tipo === 'inmueble' ? inmuebles : espacios;
-    const found = lista.find(x => String(getIdFrom(x, tipo)) === String(id));
+    const found = lista.find((x) => String(getIdFrom(x, tipo)) === String(id));
     if (found) return getNombreFrom(found, tipo);
     return tipo === 'inmueble' ? 'Inmueble no encontrado' : 'Espacio no encontrado';
   };
@@ -92,17 +73,17 @@ function ConfigurarTarifas() {
     if (name === 'monto') {
       const regex = /^\d*\.?\d*$/; // decimales positivos
       if (regex.test(value) || value === '') {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
       }
       return;
     }
 
     if (name === 'tipo_recurso') {
-      setFormData(prev => ({ ...prev, tipo_recurso: value, recurso_id: '' }));
+      setFormData((prev) => ({ ...prev, tipo_recurso: value, recurso_id: '' }));
       return;
     }
 
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -118,44 +99,36 @@ function ConfigurarTarifas() {
     }
 
     try {
-      const url = editingTarifa 
-        ? `${API}/api/tarifas/${editingTarifa.id_tarifa}`
-        : `${API}/api/tarifas`;
+      const payload = {
+        ...formData,
+        monto: parseFloat(formData.monto),
+        recurso_id: parseInt(formData.recurso_id),
+        estado_id: parseInt(formData.estado_id),
+      };
 
-      const method = editingTarifa ? 'PUT' : 'POST';
+      if (editingTarifa) {
+        await putJSON(`/api/tarifas/${editingTarifa.id_tarifa}`, payload);
+        setMensaje('✅ Tarifa actualizada correctamente');
+      } else {
+        await postJSON('/api/tarifas', payload);
+        setMensaje('✅ Tarifa creada correctamente');
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          monto: parseFloat(formData.monto),
-          recurso_id: parseInt(formData.recurso_id),
-          estado_id: parseInt(formData.estado_id)
-        })
+      setShowModal(false);
+      setEditingTarifa(null);
+      setFormData({
+        nombre: '',
+        descripcion: '',
+        monto: '',
+        tipo_recurso: '',
+        recurso_id: '',
+        estado_id: '1',
       });
 
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok) {
-        setMensaje(editingTarifa ? '✅ Tarifa actualizada correctamente' : '✅ Tarifa creada correctamente');
-        setShowModal(false);
-        setEditingTarifa(null);
-        setFormData({
-          nombre: '',
-          descripcion: '',
-          monto: '',
-          tipo_recurso: '',
-          recurso_id: '',
-          estado_id: '1'
-        });
-        cargarDatos();
-      } else {
-        setMensaje(`❌ Error: ${data.error || 'No se pudo guardar'}`);
-      }
+      cargarDatos();
     } catch (error) {
       console.error('Error:', error);
-      setMensaje('❌ Error de conexión con el servidor');
+      setMensaje('❌ ' + (error?.message || 'No se pudo guardar'));
     }
   };
 
@@ -163,10 +136,10 @@ function ConfigurarTarifas() {
     setFormData({
       nombre: tarifa.t_nombre,
       descripcion: tarifa.t_descripcion,
-      monto: tarifa.t_monto.toString(),
-      tipo_recurso: (tarifa.recurso_tipo || (tarifa.inmueble_id_inmueble ? 'inmueble' : 'espacio')),
-      recurso_id: (tarifa.recurso_id || tarifa.inmueble_id_inmueble || tarifa.espacios_publicos_id_espacio || ''),
-      estado_id: tarifa.t_estado_id_estado.toString()
+      monto: tarifa.t_monto?.toString?.() ?? '',
+      tipo_recurso: tarifa.recurso_tipo || (tarifa.inmueble_id_inmueble ? 'inmueble' : 'espacio'),
+      recurso_id: tarifa.recurso_id || tarifa.inmueble_id_inmueble || tarifa.espacios_publicos_id_espacio || '',
+      estado_id: String(tarifa.t_estado_id_estado ?? '1'),
     });
     setEditingTarifa(tarifa);
     setShowModal(true);
@@ -176,18 +149,12 @@ function ConfigurarTarifas() {
     if (!window.confirm('¿Estás seguro de eliminar esta tarifa?')) return;
 
     try {
-      const response = await fetch(`${API}/api/tarifas/${idTarifa}`, { method: 'DELETE' });
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok) {
-        setMensaje('✅ Tarifa eliminada correctamente');
-        cargarDatos();
-      } else {
-        setMensaje(`❌ Error: ${data.error || 'No se pudo eliminar'}`);
-      }
+      await deleteJSON(`/api/tarifas/${idTarifa}`);
+      setMensaje('✅ Tarifa eliminada correctamente');
+      cargarDatos();
     } catch (error) {
       console.error('Error:', error);
-      setMensaje('❌ Error de conexión con el servidor');
+      setMensaje('❌ ' + (error?.message || 'No se pudo eliminar'));
     }
   };
 
@@ -200,7 +167,7 @@ function ConfigurarTarifas() {
       monto: '',
       tipo_recurso: '',
       recurso_id: '',
-      estado_id: '1'
+      estado_id: '1',
     });
   };
 
@@ -213,7 +180,7 @@ function ConfigurarTarifas() {
       monto: '',
       tipo_recurso: '',
       recurso_id: '',
-      estado_id: '1'
+      estado_id: '1',
     });
   };
 
@@ -228,7 +195,7 @@ function ConfigurarTarifas() {
   return (
     <div className="configurar-tarifas-container">
       <h2>⚙️ Configuración de Tarifas</h2>
-      
+
       {mensaje && (
         <div className={`mensaje ${mensaje.includes('✅') ? 'exito' : 'error'}`}>
           {mensaje}
@@ -239,7 +206,7 @@ function ConfigurarTarifas() {
         <button className="btn-nueva-tarifa" onClick={openModal}>
           ➕ Nueva Tarifa
         </button>
-        
+
         <div className="tarifas-stats">
           <div className="stat-card">
             <h4>Total Tarifas</h4>
@@ -248,13 +215,13 @@ function ConfigurarTarifas() {
           <div className="stat-card active">
             <h4>Activas</h4>
             <span className="stat-number">
-              {tarifas.filter(t => Number(t.t_estado_id_estado) === 1).length}
+              {tarifas.filter((t) => Number(t.t_estado_id_estado) === 1).length}
             </span>
           </div>
           <div className="stat-card inactive">
             <h4>Inactivas</h4>
             <span className="stat-number">
-              {tarifas.filter(t => Number(t.t_estado_id_estado) === 7).length}
+              {tarifas.filter((t) => Number(t.t_estado_id_estado) === 7).length}
             </span>
           </div>
         </div>
@@ -282,23 +249,21 @@ function ConfigurarTarifas() {
                 </td>
               </tr>
             ) : (
-              tarifas.map(tarifa => {
+              tarifas.map((tarifa) => {
                 const estado = Number(tarifa.t_estado_id_estado);
                 const esActiva = estado === 1;
                 const esInactiva = estado === 7;
 
                 return (
-                  <tr
-                    key={tarifa.id_tarifa}
-                    className={esActiva ? 'active' : 'inactive'}
-                  >
+                  <tr key={tarifa.id_tarifa} className={esActiva ? 'active' : 'inactive'}>
                     <td>#{tarifa.id_tarifa}</td>
                     <td>{tarifa.t_nombre}</td>
                     <td>{tarifa.t_descripcion}</td>
                     <td>Q{parseFloat(tarifa.t_monto).toFixed(2)}</td>
                     <td>
                       <span className="recurso-badge">
-                        {(tarifa.recurso_tipo || (tarifa.inmueble_id_inmueble ? 'inmueble' : 'espacio')) === 'inmueble' ? '🛋️' : '🏛️'}{' '}
+                        {(tarifa.recurso_tipo || (tarifa.inmueble_id_inmueble ? 'inmueble' : 'espacio')) === 'inmueble'
+                          ? '🛋️' : '🏛️'}{' '}
                         {getNombreRecurso(
                           tarifa.recurso_tipo || (tarifa.inmueble_id_inmueble ? 'inmueble' : 'espacio'),
                           tarifa.recurso_id || tarifa.inmueble_id_inmueble || tarifa.espacios_publicos_id_espacio,
@@ -308,28 +273,22 @@ function ConfigurarTarifas() {
                     </td>
                     <td>
                       <span
-                        className={`estado-badge ${
-                          esActiva ? 'activo' : esInactiva ? 'inactivo' : 'otro'
-                        }`}
+                        className={`estado-badge ${esActiva ? 'activo' : esInactiva ? 'inactivo' : 'otro'}`}
                       >
-                        {esActiva
-                          ? 'Activo'
-                          : esInactiva
-                            ? 'Inactivo'
-                            : `Estado ${estado}`}
+                        {esActiva ? 'Activo' : esInactiva ? 'Inactivo' : `Estado ${estado}`}
                       </span>
                     </td>
                     <td>
                       <div className="acciones-buttons">
-                        <button 
-                          className="btn-editar" 
+                        <button
+                          className="btn-editar"
                           onClick={() => handleEdit(tarifa)}
                           title="Editar tarifa"
                         >
                           ✏️
                         </button>
-                        <button 
-                          className="btn-eliminar" 
+                        <button
+                          className="btn-eliminar"
                           onClick={() => handleDelete(tarifa.id_tarifa)}
                           title="Eliminar tarifa"
                         >
@@ -348,12 +307,12 @@ function ConfigurarTarifas() {
       {/* Modal para crear/editar tarifa */}
       {showModal && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{editingTarifa ? '✏️ Editar Tarifa' : '➕ Crear Nueva Tarifa'}</h3>
               <button className="modal-close" onClick={closeModal}>×</button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-group">
                 <label>Nombre de la Tarifa:</label>
@@ -417,7 +376,7 @@ function ConfigurarTarifas() {
                     required
                   >
                     <option value="">-- Selecciona inmueble --</option>
-                    {inmuebles.map(inmueble => {
+                    {inmuebles.map((inmueble) => {
                       const id = getIdFrom(inmueble, 'inmueble');
                       const nombre = getNombreFrom(inmueble, 'inmueble');
                       return (
@@ -440,11 +399,13 @@ function ConfigurarTarifas() {
                     required
                   >
                     <option value="">-- Selecciona espacio --</option>
-                    {espacios.map(espacio => {
+                    {espacios.map((espacio) => {
                       const id = getIdFrom(espacio, 'espacio');
                       const nombre = getNombreFrom(espacio, 'espacio');
                       return (
-                        <option key={id} value={id}>{nombre}</option>
+                        <option key={id} value={id}>
+                          {nombre}
+                        </option>
                       );
                     })}
                   </select>

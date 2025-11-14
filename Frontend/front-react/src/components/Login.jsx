@@ -31,23 +31,21 @@ export default function Login({ onSuccess }) {
   // ---- LOGIN NORMAL ----
   async function handleSubmit(e) {
     e.preventDefault();
-    if (isResetMode) return; // por si acaso
+    if (isResetMode) return;
 
     setError('');
     setOkMsg('');
     setLoading(true);
     try {
       await login({ usuario: usuario.trim(), contrasenia });
-
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        navigate('/dashboard');
-      }
+      if (onSuccess) onSuccess();
+      else navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      setError(err?.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
+      // por seguridad, limpia el campo de contraseña
+      setContrasenia('');
     }
   }
 
@@ -61,12 +59,10 @@ export default function Login({ onSuccess }) {
       setError('Todos los campos son obligatorios');
       return;
     }
-
     if (resetNueva !== resetConfirma) {
       setError('Las contraseñas nuevas no coinciden');
       return;
     }
-
     if (resetNueva.length < 8) {
       setError('La nueva contraseña debe tener al menos 8 caracteres');
       return;
@@ -74,11 +70,6 @@ export default function Login({ onSuccess }) {
 
     try {
       setLoading(true);
-
-      // 🔴 ANTES:
-      // const resp = await fetch('/api/auth/admin-reset-password', { ... });
-
-      // ✅ AHORA: usamos postJSON, que ya pega el BASE_URL (http://localhost:5000)
       const data = await postJSON('/api/auth/admin-reset-password', {
         targetUsuario: resetUsuario.trim(),
         nuevaContrasenia: resetNueva,
@@ -91,8 +82,7 @@ export default function Login({ onSuccess }) {
       setResetConfirma('');
       setAdminPwd('');
     } catch (err) {
-      console.error('Error al cambiar contraseña:', err);
-      setError(err.message || 'No se pudo cambiar la contraseña');
+      setError(err?.message || 'No se pudo cambiar la contraseña');
     } finally {
       setLoading(false);
     }
@@ -100,24 +90,41 @@ export default function Login({ onSuccess }) {
 
   // ---- Cambiar entre modos ----
   const toggleMode = () => {
+    if (loading) return; // evita cambios de modo mientras procesa
     setIsResetMode((m) => !m);
     setError('');
     setOkMsg('');
+    // limpiar formularios al cambiar de modo
+    setUsuario('');
+    setContrasenia('');
+    setResetUsuario('');
+    setResetNueva('');
+    setResetConfirma('');
+    setAdminPwd('');
   };
+
+  const loginDisabled = loading || !usuario.trim() || !contrasenia;
 
   return (
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-header">
           <h2>{isResetMode ? 'Cambiar contraseña (solo admin)' : 'Iniciar sesión'}</h2>
-          <p className="muted">
-            Sistema de Gestión San José Pinula
-          </p>
+          <p className="muted">Sistema de Gestión San José Pinula</p>
         </div>
 
-        {error && <div className="login-alert">{error}</div>}
+        {error && (
+          <div className="login-alert" role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
         {okMsg && (
-          <div className="login-alert" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
+          <div
+            className="login-alert"
+            style={{ backgroundColor: '#dcfce7', color: '#166534' }}
+            role="status"
+            aria-live="polite"
+          >
             {okMsg}
           </div>
         )}
@@ -128,9 +135,12 @@ export default function Login({ onSuccess }) {
             <label className="lbl">Usuario</label>
             <input
               className="inp"
-              placeholder=" "
+              placeholder="usuario.sistema"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
+              autoComplete="username"
+              required
+              minLength={3}
             />
 
             <label className="lbl">Contraseña</label>
@@ -141,23 +151,22 @@ export default function Login({ onSuccess }) {
                 placeholder="••••••••"
                 value={contrasenia}
                 onChange={(e) => setContrasenia(e.target.value)}
+                autoComplete="current-password"
+                required
               />
               <button
                 type="button"
                 className="btn-eye"
                 onClick={() => setVerPass((v) => !v)}
-                aria-label="Mostrar/Ocultar contraseña"
+                aria-label={verPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
               >
                 {verPass ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
 
-            <button className="btn-login" type="submit" disabled={loading}>
+            <button className="btn-login" type="submit" disabled={loginDisabled}>
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
-
-            <p className="demo-tip">
-            </p>
           </form>
         )}
 
@@ -170,6 +179,8 @@ export default function Login({ onSuccess }) {
               placeholder="usuario_del_sistema"
               value={resetUsuario}
               onChange={(e) => setResetUsuario(e.target.value)}
+              required
+              minLength={3}
             />
 
             <label className="lbl">Nueva contraseña</label>
@@ -179,6 +190,9 @@ export default function Login({ onSuccess }) {
               placeholder="Nueva contraseña"
               value={resetNueva}
               onChange={(e) => setResetNueva(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
             />
 
             <label className="lbl">Confirmar nueva contraseña</label>
@@ -188,15 +202,20 @@ export default function Login({ onSuccess }) {
               placeholder="Repite la nueva contraseña"
               value={resetConfirma}
               onChange={(e) => setResetConfirma(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
             />
 
-            <label className="lbl">Contraseña del administrador (ID 2)</label>
+            <label className="lbl">Contraseña del administrador</label>
             <input
               className="inp"
               type="password"
               placeholder="Contraseña del admin"
               value={adminPwd}
               onChange={(e) => setAdminPwd(e.target.value)}
+              required
+              autoComplete="current-password"
             />
 
             <button className="btn-login" type="submit" disabled={loading}>

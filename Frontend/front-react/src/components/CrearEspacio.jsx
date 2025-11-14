@@ -1,5 +1,7 @@
+// src/components/CrearEspacio.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/CrearEspacio.css';
+import { postJSON } from '../utils/api';
 
 const TIPOS_ESPACIO = [
   { value: 'Espacios Recreativos', slug: 'recreativos' },
@@ -65,29 +67,18 @@ function CrearEspacio() {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/catalogos/espacios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: formData.nombre.trim(),
-          tipo: formData.tipo,
-          ubicacion: formData.ubicacion.trim(),
-          estado_id: parseInt(formData.estado_id, 10),
-        }),
+      await postJSON('/api/catalogos/espacios', {
+        nombre: formData.nombre.trim(),
+        tipo: formData.tipo,
+        ubicacion: formData.ubicacion.trim(),
+        estado_id: parseInt(formData.estado_id, 10),
       });
 
-      const ct = res.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await res.json() : { error: await res.text() };
-
-      if (!res.ok) {
-        setMensaje(`❌ Error: ${data?.error || 'No se pudo crear el Espacio'}`);
-      } else {
-        setMensaje('✅ Espacio público creado correctamente');
-        reset();
-      }
+      setMensaje('✅ Espacio público creado correctamente');
+      reset();
     } catch (err) {
       console.error(err);
-      setMensaje('❌ Error de conexión con el servidor');
+      setMensaje('❌ ' + (err?.message || 'Error de conexión con el servidor'));
     }
   };
 

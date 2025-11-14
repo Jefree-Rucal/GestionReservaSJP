@@ -1,8 +1,9 @@
+// src/components/VistaDisponibilidad.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import "../styles/VistaDisponibilidad.css";
+import { getJSON } from "../utils/api";
 
-const api = (p) => `http://localhost:5000${p}`;
-
+// armar querystring rápido
 const qs = (obj) =>
   Object.entries(obj)
     .filter(([, v]) => v !== undefined && v !== null && String(v) !== "")
@@ -21,7 +22,7 @@ export default function VistaDisponibilidad() {
   const [inmuebles, setInmuebles] = useState([]);
   const [espacios, setEspacios] = useState([]);
 
-  // Para los endpoints /disponibilidad/* del backend (esperan 'desde' y 'hasta')
+  // Para los endpoints /disponibilidad/* (esperan 'desde' y 'hasta')
   const paramsDisp = useMemo(() => qs({ desde, hasta }), [desde, hasta]);
   // Para el fallback /reservas/rango (espera 'from' y 'to')
   const paramsRango = useMemo(() => qs({ from: desde, to: hasta }), [desde, hasta]);
@@ -31,103 +32,91 @@ export default function VistaDisponibilidad() {
     if (ms) setTimeout(() => setBanner({ type: null, text: "" }), ms);
   }, []);
 
-  // Cargar datos cuando cambie el rango o la pestaña
-  useEffect(() => {
-    let abort = false;
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (activeTab === "inmuebles") {
+        // 1) Intentar endpoint dedicado
+        try {
+          const data = await getJSON(`/api/reservas/disponibilidad/inmuebles?${paramsDisp}`);
+          setInmuebles(Array.isArray(data) ? data : []);
+        } catch {
+          // 2) Fallback: calcular desde /reservas/rango + catálogo
+          const rango = await getJSON(`/api/reservas/rango?${paramsRango}`);
+          const cat = await getJSON(`/api/catalogos/inmuebles`);
 
-    const load = async () => {
-      try {
-        setLoading(true);
-
-        if (activeTab === "inmuebles") {
-          // 1) Intentar endpoint dedicado
-          let r = await fetch(api(`/api/reservas/disponibilidad/inmuebles?${paramsDisp}`));
-          if (r.ok) {
-            const data = await r.json();
-            if (!abort) setInmuebles(Array.isArray(data) ? data : []);
-          } else {
-            // 2) Fallback: calcular desde /reservas/rango + catálogo
-            const rr = await fetch(api(`/api/reservas/rango?${paramsRango}`));
-            if (!rr.ok) throw new Error("No se pudo obtener reservas (fallback inmuebles)");
-            const data = await rr.json();
-
-            const catRes = await fetch(api(`/api/reservas/inmuebles`));
-            if (!catRes.ok) throw new Error("No se pudo obtener catálogo de inmuebles");
-            const cat = await catRes.json();
-
-            // El endpoint /rango retorna 'inmueble' como NOMBRE (string). Sumamos por nombre.
-            const sumByNombre = new Map();
-            for (const it of data) {
-              const nombreInm = it?.inmueble || it?.nombre_inmueble;
-              if (!nombreInm) continue;
-              const cant = Number(it?.cantidad ?? 0);
-              sumByNombre.set(nombreInm, (sumByNombre.get(nombreInm) || 0) + (isFinite(cant) ? cant : 0));
-            }
-
-            const rows = cat.map((c) => {
-              const nombre = c.i_nombre || c.nombre || "—";
-              const total = Number(c.cantidad_total ?? 0);
-              const reservado = Number(sumByNombre.get(nombre) || 0);
-              return {
-                id_inmueble: c.id_inmueble,
-                nombre,
-                cantidad_total: total,
-                cantidad_reservada: reservado,
-                cantidad_disponible: Math.max(0, total - reservado),
-              };
-            });
-            if (!abort) setInmuebles(rows);
-          }
-        }
-
-        if (activeTab === "espacios") {
-          // 1) Intentar endpoint dedicado
-          let r = await fetch(api(`/api/reservas/disponibilidad/espacios?${paramsDisp}`));
-          if (r.ok) {
-            const data = await r.json();
-            if (!abort) setEspacios(Array.isArray(data) ? data : []);
-          } else {
-            // 2) Fallback: calcular desde /reservas/rango + catálogo
-            const rr = await fetch(api(`/api/reservas/rango?${paramsRango}`));
-            if (!rr.ok) throw new Error("No se pudo obtener reservas (fallback espacios)");
-            const data = await rr.json();
-
-            const catRes = await fetch(api(`/api/reservas/espacios`));
-            if (!catRes.ok) throw new Error("No se pudo obtener catálogo de espacios");
-            const cat = await catRes.json();
-
-            // Ocupado si en el rango hay entradas con nombre_espacio
-            const ocupadosPorNombre = new Set(
-              data
-                .map((x) => x?.espacio || x?.nombre_espacio)
-                .filter(Boolean)
+          // Sumar por nombre de inmueble en el rango
+          const sumByNombre = new Map();
+          for (const it of (Array.isArray(rango) ? rango : [])) {
+            const nombreInm =
+              it?.inmueble_nombre || it?.inmueble || it?.nombre_inmueble || it?.recurso_nombre;
+            if (!nombreInm) continue;
+            const cant = Number(
+              it?.cantidad_reserva ?? it?.cantidad ?? it?.r_cantidad ?? 0
             );
-
-            const rows = cat.map((c) => {
-              const nombre = c.e_nombre || c.nombre || "—";
-              return {
-                id_espacio: c.id_espacio,
-                nombre,
-                ocupado: ocupadosPorNombre.has(nombre),
-              };
-            });
-            if (!abort) setEspacios(rows);
+            sumByNombre.set(
+              nombreInm,
+              (sumByNombre.get(nombreInm) || 0) + (Number.isFinite(cant) ? cant : 0)
+            );
           }
-        }
-      } catch (err) {
-        if (!abort) showBanner("error", err.message || "Error al cargar disponibilidad");
-        if (!abort && activeTab === "inmuebles") setInmuebles([]);
-        if (!abort && activeTab === "espacios") setEspacios([]);
-      } finally {
-        if (!abort) setLoading(false);
-      }
-    };
 
-    load();
-    return () => {
-      abort = true;
-    };
-  }, [paramsDisp, paramsRango, activeTab, showBanner]);
+          const rows = (Array.isArray(cat) ? cat : []).map((c) => {
+            const id_inmueble = c.id_inmueble ?? c.id ?? null;
+            const nombre = c.i_nombre || c.nombre || "—";
+            const total = Number(c.cantidad_total ?? c.i_cantidad_total ?? 0);
+            const reservado = Number(sumByNombre.get(nombre) || 0);
+            const disponible = Math.max(0, total - reservado);
+            return {
+              id_inmueble,
+              nombre,
+              cantidad_total: total,
+              cantidad_reservada: reservado,
+              cantidad_disponible: disponible,
+            };
+          });
+
+          setInmuebles(rows);
+        }
+      }
+
+      if (activeTab === "espacios") {
+        // 1) Intentar endpoint dedicado
+        try {
+          const data = await getJSON(`/api/reservas/disponibilidad/espacios?${paramsDisp}`);
+          setEspacios(Array.isArray(data) ? data : []);
+        } catch {
+          // 2) Fallback: calcular desde /reservas/rango + catálogo
+          const rango = await getJSON(`/api/reservas/rango?${paramsRango}`);
+          const cat = await getJSON(`/api/catalogos/espacios`);
+
+          // “Ocupado” si en el rango existe alguna reserva del espacio (por nombre)
+          const ocupadosPorNombre = new Set(
+            (Array.isArray(rango) ? rango : [])
+              .map((x) => x?.espacio_nombre || x?.espacio || x?.nombre_espacio || x?.recurso_nombre)
+              .filter(Boolean)
+          );
+
+          const rows = (Array.isArray(cat) ? cat : []).map((c) => {
+            const id_espacio = c.id_espacio ?? c.id ?? null;
+            const nombre = c.e_nombre || c.nombre || "—";
+            return { id_espacio, nombre, ocupado: ocupadosPorNombre.has(nombre) };
+          });
+
+          setEspacios(rows);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showBanner("error", err?.message || "Error al cargar disponibilidad");
+      if (activeTab === "inmuebles") setInmuebles([]);
+      if (activeTab === "espacios") setEspacios([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, paramsDisp, paramsRango, showBanner]);
+
+  // Cargar datos cuando cambien rango o pestaña
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="disp-container">
@@ -142,7 +131,7 @@ export default function VistaDisponibilidad() {
             Hasta
             <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
           </label>
-          <button className="btn" onClick={() => setActiveTab((t) => t)}>Actualizar</button>
+          <button className="btn" onClick={load}>Actualizar</button>
         </div>
       </div>
 

@@ -30,7 +30,7 @@ import ListadoUsuarios from './ListadoUsuarios';
 import CrearUsuario from './CrearUsuario';
 import GestionPermisos from './GestionPermisos';
 
-import { getJSON } from '../utils/api';
+import { getJSON, postJSON } from '../utils/api';
 
 /* =========================
    Helpers Auth/Permisos
@@ -175,15 +175,8 @@ function Dashboard() {
   /* ======= Cerrar sesión (con redirección a /login) ======= */
   const cerrarSesion = async () => {
     try {
-      const token =
-        localStorage.getItem('token') ||
-        JSON.parse(localStorage.getItem('auth') || '{}')?.token;
-      if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => {});
-      }
+      // Usamos postJSON para heredar BASE_URL y Authorization automáticamente
+      await postJSON('/api/auth/logout', {}).catch(() => {});
     } finally {
       ['auth', 'user', 'authUser', 'token', 'jwt'].forEach((k) =>
         localStorage.removeItem(k)

@@ -1,5 +1,5 @@
 // src/components/GestionPermisos.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import '../styles/RegistrarPago.css';
 import { getJSON, putJSON } from '../utils/api';
 
@@ -121,11 +121,11 @@ export default function GestionPermisos({ currentUser }) {
   const roleId = Number(user?.u_rol_id_rolu ?? user?.rol ?? user?.roleId) || null;
   const isAdmin = roleId === 1;
 
-  if (!isAdmin) return <AccesoRestringido />;   // NO hay hooks aquí
-  return <PermisosAdmin />;                     // Hooks viven dentro de este componente
+  if (!isAdmin) return <AccesoRestringido />;
+  return <PermisosAdmin />;
 }
 
-/* ========= Vista acceso restringido (stateless) ========= */
+/* ========= Vista acceso restringido ========= */
 function AccesoRestringido() {
   return (
     <div className="registrar-pago-container">
@@ -155,7 +155,7 @@ function AccesoRestringido() {
   );
 }
 
-/* ========= Vista admin con TODOS los Hooks en tope ========= */
+/* ========= Vista admin ========= */
 function PermisosAdmin() {
   const [tab, setTab] = useState('rol'); // 'rol' | 'usuario'
   const [roles, setRoles] = useState([]);
@@ -172,8 +172,12 @@ function PermisosAdmin() {
   const [heredaDeRol, setHeredaDeRol] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [expandAll, setExpandAll] = useState(true);
 
+  // 👉 nuevo: colapso/expansión por grupo
+  const [collapsed, setCollapsed] = useState(new Set()); // ids colapsados
+  const [expandAllFlag, setExpandAllFlag] = useState(true);
+
+  // beforeunload
   const ignoreBeforeUnload = useRef(false);
   useEffect(() => {
     const onBeforeUnload = (e) => {
@@ -187,14 +191,21 @@ function PermisosAdmin() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [dirty]);
 
+  // Aborters para evitar carreras
+  const abortListRef = useRef(null);
+  const abortPermRef = useRef(null);
+
   // Cargar catálogos
   useEffect(() => {
     (async () => {
       try {
+        abortListRef.current?.abort?.();
+        abortListRef.current = new AbortController();
+
         setLoading(true);
-        const rRoles = await getJSON('/api/usuarios/roles/lista').catch(() => ({ roles: [] }));
+        const rRoles = await getJSON('/api/usuarios/roles/lista', { signal: abortListRef.current.signal }).catch(() => ({ roles: [] }));
         setRoles(rRoles?.roles || []);
-        const rUsers = await getJSON('/api/usuarios').catch(() => ({ usuarios: [] }));
+        const rUsers = await getJSON('/api/usuarios', { signal: abortListRef.current.signal }).catch(() => ({ usuarios: [] }));
         setUsuarios(rUsers?.usuarios || []);
         setBanner(null);
       } catch {
@@ -205,28 +216,38 @@ function PermisosAdmin() {
     })();
   }, []);
 
+  const resetStateSelection = useCallback(() => {
+    setChecked(new Set());
+    setHeredaDeRol(false);
+    setDirty(false);
+    setCollapsed(new Set());
+    setExpandAllFlag(true);
+  }, []);
+
   // Traer permisos actuales (rol/usuario)
   const cargarPermisos = async (tipo, id) => {
+    abortPermRef.current?.abort?.();
+    abortPermRef.current = new AbortController();
+
     if (!id) {
-      setChecked(new Set());
-      setHeredaDeRol(false);
-      setDirty(false);
+      resetStateSelection();
       return;
     }
     try {
       setLoading(true);
       const url = tipo === 'rol' ? `/api/permisos/rol/${id}` : `/api/permisos/usuario/${id}`;
-      const data = await getJSON(url);
+      const data = await getJSON(url, { signal: abortPermRef.current.signal });
       const perms = Array.isArray(data?.permisos) ? data.permisos : [];
       const clean = perms.filter((p) => ALL_IDS.includes(p));
       setChecked(new Set(clean));
       setHeredaDeRol(Boolean(data?.heredaDeRol));
       setBanner(null);
       setDirty(false);
-    } catch {
-      setBanner({ type: 'error', text: 'No se pudieron cargar los permisos.' });
-      setChecked(new Set());
-      setHeredaDeRol(false);
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        setBanner({ type: 'error', text: 'No se pudieron cargar los permisos.' });
+        resetStateSelection();
+      }
     } finally {
       setLoading(false);
     }
@@ -242,7 +263,7 @@ function PermisosAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, selUsuario]);
 
-  // Mutadores
+  // Mutadores permisos
   const toggle = (id) => {
     setChecked((prev) => {
       const n = new Set(prev);
@@ -279,6 +300,7 @@ function PermisosAdmin() {
   // Guardar
   const guardar = async () => {
     try {
+      ignoreBeforeUnload.current = true;
       setSaving(true);
       const payload = { permisos: Array.from(checked) };
 
@@ -296,6 +318,8 @@ function PermisosAdmin() {
       setBanner({ type: 'error', text: `No se pudo guardar: ${e.message}` });
     } finally {
       setSaving(false);
+      // pequeño defer para que no se dispare beforeunload si el usuario cierra justo al terminar
+      setTimeout(() => (ignoreBeforeUnload.current = false), 300);
     }
   };
 
@@ -303,35 +327,82 @@ function PermisosAdmin() {
   const filteredTree = useMemo(() => filterTree(MODULES, search), [search]);
   const VISIBLE_IDS = useMemo(() => flatIds(filteredTree), [filteredTree]);
 
-  const Tree = ({ nodes, level = 0 }) => (
+  // ids de grupos (nodos con hijos) visibles -> para expandir/colapsar todo
+  const visibleGroupIds = useMemo(() => {
+    const out = [];
+    const walk = (nodes) => {
+      nodes.forEach((n) => {
+        if (n.children?.length) {
+          out.push(n.id);
+          walk(n.children);
+        }
+      });
+    };
+    walk(filteredTree);
+    return out;
+  }, [filteredTree]);
+
+  const toggleCollapse = (groupId) => {
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      if (n.has(groupId)) n.delete(groupId);
+      else n.add(groupId);
+      return n;
+    });
+  };
+
+  const expandAll = () => {
+    setCollapsed(new Set());
+    setExpandAllFlag(true);
+  };
+  const collapseAll = () => {
+    setCollapsed(new Set(visibleGroupIds));
+    setExpandAllFlag(false);
+  };
+
+  const Tree = ({ nodes }) => (
     <ul className="perm-tree" style={{ display: 'block' }}>
       {nodes.map((n) => {
         const hasChildren = Array.isArray(n.children) && n.children.length > 0;
         const groupIds = flatIds([n]);
         const groupAllOn = groupIds.every((id) => checked.has(id));
         const groupSomeOn = !groupAllOn && groupIds.some((id) => checked.has(id));
+        const isCollapsed = hasChildren && collapsed.has(n.id);
 
         return (
           <li key={n.id} className="perm-item">
             <div className="perm-row">
               {hasChildren ? (
-                <input
-                  type="checkbox"
-                  checked={groupAllOn}
-                  ref={(el) => { if (el) el.indeterminate = groupSomeOn; }}
-                  onChange={(e) => setGroup(n, e.target.checked)}
-                />
+                <>
+                  <button
+                    type="button"
+                    className="perm-caret"
+                    aria-label={isCollapsed ? 'Expandir' : 'Colapsar'}
+                    onClick={() => toggleCollapse(n.id)}
+                  >
+                    {isCollapsed ? '▶' : '▼'}
+                  </button>
+                  <input
+                    type="checkbox"
+                    checked={groupAllOn}
+                    ref={(el) => { if (el) el.indeterminate = groupSomeOn; }}
+                    onChange={(e) => setGroup(n, e.target.checked)}
+                  />
+                </>
               ) : (
-                <input
-                  type="checkbox"
-                  checked={checked.has(n.id)}
-                  onChange={() => toggle(n.id)}
-                />
+                <>
+                  <span className="perm-caret placeholder" />
+                  <input
+                    type="checkbox"
+                    checked={checked.has(n.id)}
+                    onChange={() => toggle(n.id)}
+                  />
+                </>
               )}
               <span className="perm-label">{n.label}</span>
               <code className="perm-code">{n.id}</code>
             </div>
-            {hasChildren && <Tree nodes={n.children} level={level + 1} />}
+            {hasChildren && !isCollapsed && <Tree nodes={n.children} />}
           </li>
         );
       })}
@@ -347,16 +418,14 @@ function PermisosAdmin() {
     if (dirty && !window.confirm('Hay cambios sin guardar. ¿Deseas continuar y descartarlos?')) return;
     setTab(next);
     setSearch('');
-    setChecked(new Set());
-    setHeredaDeRol(false);
+    resetStateSelection();
     setBanner(null);
-    setDirty(false);
   };
 
   const safeSetSel = (setter) => (e) => {
     const v = e.target.value;
     if (dirty && !window.confirm('Hay cambios sin guardar. ¿Deseas continuar y descartarlos?')) {
-      e.target.value = tab === 'rol' ? selRol : selUsuario;
+      // mantener selección previa
       return;
     }
     setter(v);
@@ -364,7 +433,6 @@ function PermisosAdmin() {
     setBanner(null);
   };
 
-  // ===== UI =====
   return (
     <div className="registrar-pago-container">
       <div className="pagina-header" style={{ marginBottom: 10 }}>
@@ -405,7 +473,7 @@ function PermisosAdmin() {
                 </option>
               ))}
             </select>
-            <button className="btn-registrar-pago" onClick={() => cargarPermisos('rol', selRol)} disabled={!selRol}>
+            <button className="btn-registrar-pago" onClick={() => cargarPermisos('rol', selRol)} disabled={!selRol || loading}>
               Cargar
             </button>
           </>
@@ -419,7 +487,7 @@ function PermisosAdmin() {
                 </option>
               ))}
             </select>
-            <button className="btn-registrar-pago" onClick={() => cargarPermisos('usuario', selUsuario)} disabled={!selUsuario}>
+            <button className="btn-registrar-pago" onClick={() => cargarPermisos('usuario', selUsuario)} disabled={!selUsuario || loading}>
               Cargar
             </button>
           </>
@@ -433,10 +501,26 @@ function PermisosAdmin() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb' }}
           />
-          <button className="btn-registrar-pago" onClick={() => setAll(true, VISIBLE_IDS)} disabled={loading || (!selRol && !selUsuario)}>Marcar todo</button>
-          <button className="btn-registrar-pago" onClick={() => setAll(false, VISIBLE_IDS)} disabled={loading || (!selRol && !selUsuario)}>Desmarcar todo</button>
-          <button className="btn-registrar-pago" onClick={() => setExpandAll((v) => !v)} disabled={filteredTree.length === 0}>
-            {expandAll ? 'Colapsar' : 'Expandir'}
+          <button
+            className="btn-registrar-pago"
+            onClick={() => setAll(true, VISIBLE_IDS)}
+            disabled={loading || (!selRol && !selUsuario)}
+          >
+            Marcar todo
+          </button>
+          <button
+            className="btn-registrar-pago"
+            onClick={() => setAll(false, VISIBLE_IDS)}
+            disabled={loading || (!selRol && !selUsuario)}
+          >
+            Desmarcar todo
+          </button>
+          <button
+            className="btn-registrar-pago"
+            onClick={() => (expandAllFlag ? collapseAll() : expandAll())}
+            disabled={filteredTree.length === 0}
+          >
+            {expandAllFlag ? 'Colapsar' : 'Expandir'}
           </button>
         </div>
       </div>
@@ -492,7 +576,7 @@ function PermisosAdmin() {
         <button
           className="btn-registrar-pago ok"
           onClick={guardar}
-          disabled={saving || loading || (tab === 'rol' ? !selRol : !selUsuario)}
+          disabled={saving || loading || (!dirty) || (tab === 'rol' ? !selRol : !selUsuario)}
         >
           {saving ? 'Guardando…' : 'Guardar permisos'}
         </button>
@@ -508,6 +592,11 @@ function PermisosAdmin() {
           font-size: 11px; opacity: .6; background:#f8fafc; padding:2px 6px; border-radius:8px;
           border:1px solid #e5e7eb;
         }
+        .perm-caret { 
+          border: 0; background: transparent; cursor: pointer; 
+          width: 20px; text-align: center; padding: 0; line-height: 1;
+        }
+        .perm-caret.placeholder { width: 20px; }
       `}</style>
     </div>
   );

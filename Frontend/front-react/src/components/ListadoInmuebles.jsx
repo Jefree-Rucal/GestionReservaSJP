@@ -1,6 +1,40 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import '../styles/ListadoInmuebles.css';
 
+/* ===== Base URL dinámica (sin localhost) ===== */
+const BASE_URL = (() => {
+  const env = (process.env.REACT_APP_API_URL || '').trim();
+  if (env) return env.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '3000') return `${protocol}//${hostname}:5000`; // dev CRA → API :5000
+    return origin.replace(/\/$/, ''); // prod: mismo host
+  }
+  return 'http://localhost:5000';
+})();
+const api = (path) => `${BASE_URL}${path}`;
+
+const getToken = () => {
+  const keys = ['auth', 'user', 'authUser'];
+  for (const k of keys) {
+    const raw = localStorage.getItem(k);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') return parsed;
+      if (parsed.access_token) return parsed.access_token;
+      if (parsed.token) return parsed.token;
+      if (parsed.jwt) return parsed.jwt;
+      if (parsed?.user?.token) return parsed.user.token;
+    } catch {}
+  }
+  return localStorage.getItem('token') || localStorage.getItem('jwt') || null;
+};
+const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
 const TIPO_OPTIONS = ['Mobiliario', 'Electrónica', 'Herramienta', 'Maquinaria'];
 const MAP_TIPO_NUM = { '1': 'Mobiliario', '2': 'Electrónica', '3': 'Herramienta', '4': 'Maquinaria' };
 const ESTADO_OPTIONS = [
@@ -76,7 +110,9 @@ export default function ListadoInmuebles() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const r = await fetch('http://localhost:5000/api/catalogos/inmuebles');
+      const r = await fetch(api('/api/catalogos/inmuebles'), {
+        headers: { ...authHeaders() },
+      });
       const d = await parseJSONorThrowText(r);
       const arr = Array.isArray(d) ? d.map(normalizeInmueble) : [];
       setItems(arr);
@@ -141,17 +177,15 @@ export default function ListadoInmuebles() {
         cantidad_total: qty,
         estado_id: Number(editForm.estado_id),
       };
-      const r = await fetch(`http://localhost:5000/api/catalogos/inmuebles/${editingId}`, {
+      const r = await fetch(api(`/api/catalogos/inmuebles/${editingId}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(body),
       });
       const d = await parseJSONorThrowText(r);
       if (!r.ok) throw new Error(d?.error || 'Error al guardar');
 
-      // **CAMBIO AQUI:** Vuelve a cargar la lista completa después de guardar
-      await load();
-      
+      await load(); // recarga lista tras guardar
       showMsg('✅ Mueble actualizado');
       closeEditModal();
     } catch (e) {
@@ -167,7 +201,10 @@ export default function ListadoInmuebles() {
   const confirmDelete = async () => {
     if (!confirmDel.id) return;
     try {
-      const r = await fetch(`http://localhost:5000/api/catalogos/inmuebles/${confirmDel.id}`, { method: 'DELETE' });
+      const r = await fetch(api(`/api/catalogos/inmuebles/${confirmDel.id}`), {
+        method: 'DELETE',
+        headers: { ...authHeaders() },
+      });
       const d = await parseJSONorThrowText(r).catch(() => ({}));
       if (r.status === 409) {
         showMsg(d?.error || '❌ No se puede eliminar: tiene reservas asociadas.');

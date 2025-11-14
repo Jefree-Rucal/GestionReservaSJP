@@ -1,18 +1,20 @@
+// src/components/CrearInmueble.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import '../styles/CrearInmueble.css';
+import { postJSON } from '../utils/api';
 
 const TIPOS_INVENTARIO = [
   { key: 'mobiliario',  label: 'Mobiliario'  },
   { key: 'electronica', label: 'Electrónica' },
   { key: 'herramienta', label: 'Herramienta' },
-  { key: 'varios',  label: 'Varios'  },
+  { key: 'varios',      label: 'Varios'      },
 ];
 
 function CrearInmueble() {
   const [formData, setFormData] = useState({
     nombre: '',
-    tipo: '',          // guardamos el label (p.ej. "Mobiliario")
-    tipoKey: '',       // y también la key para estilos (p.ej. "mobiliario")
+    tipo: '',          // label (p.ej. "Mobiliario")
+    tipoKey: '',       // key para estilos (p.ej. "mobiliario")
     ubicacion: '',
     cantidad_total: '',
     estado_id: '1'
@@ -52,12 +54,7 @@ function CrearInmueble() {
     const { name, value } = e.target;
 
     // Validaciones suaves por campo (evita caracteres raros)
-    if (name === 'nombre') {
-      const limpio = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,#()/_-]/g, '');
-      setFormData(prev => ({ ...prev, [name]: limpio }));
-      return;
-    }
-    if (name === 'ubicacion') {
+    if (name === 'nombre' || name === 'ubicacion') {
       const limpio = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9 .,#()/_-]/g, '');
       setFormData(prev => ({ ...prev, [name]: limpio }));
       return;
@@ -93,37 +90,26 @@ function CrearInmueble() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/catalogos/inmuebles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: formData.nombre.trim(),
-          tipo: formData.tipo, // label legible
-          ubicacion: formData.ubicacion.trim(),
-          cantidad_total: parseInt(formData.cantidad_total, 10),
-          estado_id: parseInt(formData.estado_id, 10)
-        })
+      await postJSON('/api/catalogos/inmuebles', {
+        nombre: formData.nombre.trim(),
+        tipo: formData.tipo, // label legible
+        ubicacion: formData.ubicacion.trim(),
+        cantidad_total: parseInt(formData.cantidad_total, 10),
+        estado_id: parseInt(formData.estado_id, 10)
       });
 
-      const ct = response.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await response.json() : { error: await response.text() };
-
-      if (response.ok) {
-        setMensaje('✅ Mueble creado correctamente');
-        setFormData({
-          nombre: '',
-          tipo: '',
-          tipoKey: '',
-          ubicacion: '',
-          cantidad_total: '',
-          estado_id: '1'
-        });
-      } else {
-        setMensaje(`❌ Error: ${data?.error || 'No se pudo crear el Mueble'}`);
-      }
+      setMensaje('✅ Mueble creado correctamente');
+      setFormData({
+        nombre: '',
+        tipo: '',
+        tipoKey: '',
+        ubicacion: '',
+        cantidad_total: '',
+        estado_id: '1'
+      });
     } catch (error) {
-      console.error('Error:', error);
-      setMensaje('❌ Error de conexión con el servidor');
+      console.error(error);
+      setMensaje('❌ ' + (error?.message || 'Error de conexión con el servidor'));
     }
   };
 

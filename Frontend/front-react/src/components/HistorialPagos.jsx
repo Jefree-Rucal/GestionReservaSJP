@@ -1,10 +1,50 @@
 // src/components/HistorialPagos.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import html2pdf from 'html2pdf.js';
 import '../styles/RegistrarPago.css';
 
+// ======= Constantes/Utils fuera del componente (consistentes con el proyecto) =======
+const BASE_URL = (() => {
+  const env = (process.env.REACT_APP_API_URL || '').trim();
+  if (env) return env.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '3000') return `${protocol}//${hostname}:5000`;
+    return origin.replace(/\/$/, '');
+  }
+  return 'http://localhost:5000';
+})();
+
+const getToken = () => {
+  const keys = ['auth', 'user', 'authUser'];
+  for (const k of keys) {
+    const raw = localStorage.getItem(k);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') return parsed;
+      if (parsed.access_token) return parsed.access_token;
+      if (parsed.token) return parsed.token;
+      if (parsed.jwt) return parsed.jwt;
+    } catch {}
+  }
+  return localStorage.getItem('token') || localStorage.getItem('jwt') || null;
+};
+
 // Coloca el archivo del logo aquí: frontend/front-react/public/img/LogoSJP.jpg
 const LOGO_SRC = '/img/LogoSJP.jpg';
+
+// ===== Helpers de formato =====
+const formatQ = (n) =>
+  new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' })
+    .format(Number(n ?? 0));
+
+const fmtFecha = (d) =>
+  d ? new Date(d).toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+
+const get = (o, k) => (o && o[k] !== undefined && o[k] !== null ? o[k] : undefined);
+
+// =====================================================
 
 export default function HistorialPagos() {
   // Fechas por defecto (mes actual)
@@ -19,29 +59,58 @@ export default function HistorialPagos() {
   const [desde, setDesde] = useState(firstDay);
   const [hasta, setHasta] = useState(todayStr);
   const [q, setQ] = useState('');
+  const [banner, setBanner] = useState(null);
 
-  const formatQ = (n) =>
-    new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' })
-      .format(Number(n ?? 0));
+  const abortRef = useRef(null);
 
-  const get = (o, k) => (o && o[k] !== undefined && o[k] !== null ? o[k] : undefined);
-  const fmtFecha = (d) =>
-    d ? new Date(d).toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+  const aplicar = async () => {
+    // Validación simple de fechas
+    if (desde && hasta && new Date(desde) > new Date(hasta)) {
+      setBanner({ type: 'error', text: 'El rango de fechas es inválido (Desde no puede ser mayor que Hasta).' });
+      return;
+    }
+    setBanner(null);
+    await fetchPagos();
+  };
 
-  // ===== Carga con filtros (server si existe, si no filtra en cliente) =====
+  // ===== Carga con filtros (server si existe; si no, filtra en cliente) =====
   const fetchPagos = async () => {
+    abortRef.current?.abort?.();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
-      const url = new URL('http://localhost:5000/api/pagos/listado');
+      const token = getToken();
+      // Intento con filtros en servidor
+      const url = new URL(`${BASE_URL}/api/pagos/listado`);
       if (desde) url.searchParams.set('desde', desde);
       if (hasta) url.searchParams.set('hasta', hasta);
-      const res = await fetch(url.toString());
+
+      const res = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
       if (!res.ok) throw new Error('Ruta no disponible');
       const data = await res.json();
-      setPagos(Array.isArray(data) ? data : []);
-    } catch {
+      const arr = Array.isArray(data) ? data : [];
+      // Orden descendente por fecha
+      arr.sort((a, b) => new Date(get(b, 'p_fecha') ?? get(b, 'fecha') ?? 0) - new Date(get(a, 'p_fecha') ?? get(a, 'fecha') ?? 0));
+      setPagos(arr);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      // Fallback: pedir sin filtros y filtrar en cliente
       try {
-        const res2 = await fetch('http://localhost:5000/api/pagos/listado');
+        const token = getToken();
+        const res2 = await fetch(`${BASE_URL}/api/pagos/listado`, {
+          signal: controller.signal,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
         const data2 = await res2.json();
         const arr = Array.isArray(data2) ? data2 : [];
         const fd = desde ? new Date(desde) : null;
@@ -54,18 +123,27 @@ export default function HistorialPagos() {
           if (fh && d > fh) return false;
           return true;
         });
+        filtrado.sort((a, b) => new Date(get(b, 'p_fecha') ?? get(b, 'fecha') ?? 0) - new Date(get(a, 'p_fecha') ?? get(a, 'fecha') ?? 0));
         setPagos(filtrado);
-      } catch {
-        setPagos([]);
+      } catch (e2) {
+        if (e2.name !== 'AbortError') {
+          setPagos([]);
+          setBanner({ type: 'error', text: 'No se pudieron cargar los pagos.' });
+        }
       }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchPagos(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    fetchPagos();
+    // cleanup abort
+    return () => abortRef.current?.abort?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ===== Filtro de texto =====
+  // ===== Filtro de texto en cliente =====
   const pagosFiltrados = useMemo(() => {
     const qq = q.trim().toLowerCase();
     if (!qq) return pagos;
@@ -89,7 +167,7 @@ export default function HistorialPagos() {
     [pagosFiltrados]
   );
 
-  // ===== PDF con LOGO y detalle de fechas de la reserva =====
+  // ===== PDF de RECIBO (incluye fechas de reserva) =====
   const abrirRecibo = async (row) => {
     try {
       const idPago     = get(row, 'id_pago') ?? get(row, 'id');
@@ -103,6 +181,8 @@ export default function HistorialPagos() {
       const fechaInicio    = get(row, 'r_horainicio')    ?? get(row, 'hora_inicio')    ?? '';
       const fechaFinal     = get(row, 'r_horafinal')     ?? get(row, 'hora_final')     ?? '';
       const motivo         = get(row, 'r_motivouso')     ?? get(row, 'motivo')         ?? '-';
+
+      const safeName = String(idPago ?? 'recibo').toString().replace(/[^\w.-]/g, '_');
 
       const html = `
         <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #111827;">
@@ -163,19 +243,22 @@ export default function HistorialPagos() {
       `;
 
       const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-99999px';
       container.innerHTML = html;
       document.body.appendChild(container);
 
       await html2pdf()
         .set({
           margin: 0,
-          filename: `ReciboOficial-${idPago}.pdf`,
+          filename: `ReciboOficial-${safeName}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            logging: false,
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         })
@@ -195,18 +278,48 @@ export default function HistorialPagos() {
       <div className="pagina-header">
         <div>
           <h2 className="titulo-pagina">📚 Historial de Pagos</h2>
+          <p className="descripcion-pagina">Filtra por rango de fechas y busca por pago, reserva, recurso o referencia.</p>
         </div>
       </div>
+
+      {banner && (
+        <div
+          className="mensaje"
+          style={{
+            marginBottom: 12,
+            background: banner.type === 'error' ? '#fdecea' : '#e7f6ee',
+            color: banner.type === 'error' ? '#b42318' : '#027a48',
+            border: '1px solid',
+            borderColor: banner.type === 'error' ? '#f5c2c7' : '#a6e3c5',
+            padding: '10px 12px',
+            borderRadius: 10,
+          }}
+        >
+          {banner.text}
+        </div>
+      )}
 
       <div className="busqueda-filtros">
         <div className="busqueda-filtros-grid">
           <div className="campo-busqueda">
             <label className="label-busqueda">Desde</label>
-            <input className="input-busqueda" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+            <input
+              className="input-busqueda"
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              onKeyDown={(e)=>{ if(e.key==='Enter') aplicar(); }}
+            />
           </div>
           <div className="campo-busqueda">
             <label className="label-busqueda">Hasta</label>
-            <input className="input-busqueda" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+            <input
+              className="input-busqueda"
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              onKeyDown={(e)=>{ if(e.key==='Enter') aplicar(); }}
+            />
           </div>
           <div className="campo-busqueda">
             <label className="label-busqueda">Buscar</label>
@@ -215,12 +328,21 @@ export default function HistorialPagos() {
               placeholder="N° pago, reserva, recurso o referencia…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e)=>{ if(e.key==='Enter') aplicar(); }}
             />
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'end' }}>
-            <button className="btn-registrar-pago" onClick={fetchPagos}>🔄 Aplicar</button>
+            <button className="btn-registrar-pago" onClick={aplicar} disabled={loading}>
+              {loading ? '⏳ Cargando…' : '🔄 Aplicar'}
+            </button>
           </div>
         </div>
+      </div>
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin:'6px 2px' }}>
+        <small style={{ color:'#64748b' }}>
+          {pagosFiltrados.length} resultado{pagosFiltrados.length===1?'':'s'} • Total en vista: <b>{formatQ(total)}</b>
+        </small>
       </div>
 
       <div className="tabla-contenedor">

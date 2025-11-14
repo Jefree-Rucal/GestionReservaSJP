@@ -3,9 +3,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import '../styles/Aprobacion.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getJSON } from '../utils/api'; // 👈 usamos tus helpers (sin localhost)
 
-const API = 'http://localhost:5000/api';
-
+// Estados relevantes para el dashboard
 const ESTADOS = {
   PEND: 2, // Pendiente
   APRO: 5, // Aprobada
@@ -80,9 +80,8 @@ export default function AprobacionEstadisticas() {
     setLoading(true);
     setError('');
     try {
-      const r = await fetch(`${API}/reservas/listado`);
-      if (!r.ok) throw new Error('No se pudo obtener el listado');
-      const arr = (await r.json()) || [];
+      // 👇 sin localhost, usa helper (respeta REACT_APP_API_URL o same-origin)
+      const arr = await getJSON('/api/reservas/listado');
       setData(Array.isArray(arr) ? arr : []);
     } catch (e) {
       setData([]);

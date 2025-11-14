@@ -1,10 +1,45 @@
+// src/components/ListadoEspacios.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import '../styles/ListadoEspacios.css';
+
+/* ===== Base URL dinámica (sin localhost) ===== */
+const BASE_URL = (() => {
+  const env = (process.env.REACT_APP_API_URL || '').trim();
+  if (env) return env.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '3000') return `${protocol}//${hostname}:5000`; // dev CRA → API :5000
+    return origin.replace(/\/$/, ''); // prod: mismo host
+  }
+  return 'http://localhost:5000';
+})();
+const api = (path) => `${BASE_URL}${path}`;
+
+const getToken = () => {
+  const keys = ['auth', 'user', 'authUser'];
+  for (const k of keys) {
+    const raw = localStorage.getItem(k);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') return parsed;
+      if (parsed.access_token) return parsed.access_token;
+      if (parsed.token) return parsed.token;
+      if (parsed.jwt) return parsed.jwt;
+      if (parsed?.user?.token) return parsed.user.token;
+    } catch {}
+  }
+  return localStorage.getItem('token') || localStorage.getItem('jwt') || null;
+};
+const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
 
 /* === Constantes === */
 const ESTADOS = {
   1: { label: 'Activo', className: 'ls-badge ok' },
-  7: { label: 'Inactivo', className: 'ls-badge off' }, // 🔹 antes era 2, ahora 7
+  7: { label: 'Inactivo', className: 'ls-badge off' }, // 7 = Inactivo
 };
 
 const TIPOS_ESPACIO = [
@@ -44,13 +79,20 @@ function ListadoEspacios() {
   const cargar = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/catalogos/espacios');
+      const res = await fetch(api('/api/catalogos/espacios'), {
+        headers: { ...authHeaders() },
+      });
       const ct = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        const err = ct.includes('application/json') ? await res.json() : {};
+        throw new Error(err?.error || `HTTP ${res.status}`);
+      }
       const data = ct.includes('application/json') ? await res.json() : [];
       setEspacios(Array.isArray(data) ? data : []);
       setMsg('');
-    } catch {
+    } catch (e) {
       setMsg('❌ Error cargando espacios');
+      setEspacios([]);
     } finally {
       setLoading(false);
     }
@@ -87,10 +129,13 @@ function ListadoEspacios() {
   const confirmDelete = async () => {
     if (!confirmDel.id) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/catalogos/espacios/${confirmDel.id}`, { method: 'DELETE' });
+      const res = await fetch(api(`/api/catalogos/espacios/${confirmDel.id}`), {
+        method: 'DELETE',
+        headers: { ...authHeaders() },
+      });
       const ct = res.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await res.json() : {};
       if (!res.ok) {
+        const data = ct.includes('application/json') ? await res.json() : {};
         setMsg('❌ ' + (data?.error || 'No se pudo eliminar'));
       } else {
         setMsg('✅ Espacio eliminado');
@@ -153,9 +198,9 @@ function ListadoEspacios() {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/catalogos/espacios/${editModal.id}`, {
+      const res = await fetch(api(`/api/catalogos/espacios/${editModal.id}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           nombre: f.nombre.trim(),
           tipo: f.tipo,
@@ -164,8 +209,8 @@ function ListadoEspacios() {
         }),
       });
       const ct = res.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await res.json() : {};
       if (!res.ok) {
+        const data = ct.includes('application/json') ? await res.json() : {};
         setMsg('❌ ' + (data?.error || 'No se pudo actualizar'));
       } else {
         setMsg('✅ Espacio actualizado');
@@ -362,7 +407,7 @@ function ListadoEspacios() {
                     onChange={onEditChange}
                   >
                     <option value="1">Activo</option>
-                    <option value="7">Inactivo</option> {/* 🔹 aquí también 7 */}
+                    <option value="7">Inactivo</option>
                   </select>
                 </div>
               </div>
