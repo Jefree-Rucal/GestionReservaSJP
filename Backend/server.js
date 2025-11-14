@@ -2,6 +2,8 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const path = require('path');   // 👈 necesario para servir el build
+const fs = require('fs');       // 👈 opcional: verificar existencia del build
 
 const app = express();
 
@@ -43,22 +45,34 @@ app.use('/api/catalogos',   require('./routes/catalogos'));
 app.use('/api/reservas',    require('./routes/reservas'));
 app.use('/api/tarifas',     require('./routes/tarifas'));
 app.use('/api/pagos',       require('./routes/pagos'));
-app.use('/api/pagos',       require('./routes/registrarPago'));
+app.use('/api/pagos',       require('./routes/registrarPago')); // (si quieres, cámbialo a '/api/registrar-pago')
 app.use('/api/reportes',    require('./routes/reportes'));
 app.use('/api/solicitante', require('./routes/solicitante'));
 app.use('/api/permisos',    require('./routes/permisos'));
 
 // ===== Utilidades =====
-app.get('/api/health', (_req, res) =>
-  res.json({ ok: true, ts: Date.now() })
-);
+app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-app.get('/', (_req, res) =>
-  res.json({ mensaje: 'API OK' })
-);
 
-// ===== 404 (al final) =====
-app.use((req, res) => {
+// ===== Servir React (build) =====
+// ruta a: Backend/../Frontend/front-react/build
+const clientBuildPath = path.join(__dirname, '../Frontend/front-react/build');
+
+if (fs.existsSync(clientBuildPath)) {
+  // Archivos estáticos
+  app.use(express.static(clientBuildPath));
+
+  // Fallback SPA: cualquier ruta que NO empiece con /api la atiende React
+  app.get(/^\/(?!api).*/, (_req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️  No se encontró el build del frontend en:', clientBuildPath);
+  console.warn('    Ejecuta: npm run front:build (desde Backend/)');
+}
+
+// ===== 404 SOLO para /api (al final) =====
+app.use('/api', (req, res) => {
   console.warn(`⚠️  404 en ${req.method} ${req.originalUrl}`);
   res.status(404).json({ error: 'Ruta no encontrada', path: req.originalUrl });
 });

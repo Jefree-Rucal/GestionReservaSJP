@@ -13,7 +13,7 @@ export default function Login({ onSuccess }) {
   const [isResetMode, setIsResetMode] = useState(false);
 
   // === Estado login normal ===
-  const [usuario, setUsuario] = useState('admin');
+  const [usuario, setUsuario] = useState('');
   const [contrasenia, setContrasenia] = useState('');
   const [verPass, setVerPass] = useState(false);
 
@@ -128,7 +128,7 @@ export default function Login({ onSuccess }) {
             <label className="lbl">Usuario</label>
             <input
               className="inp"
-              placeholder="admin"
+              placeholder=" "
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
             />
@@ -157,8 +157,6 @@ export default function Login({ onSuccess }) {
             </button>
 
             <p className="demo-tip">
-              Prueba rápida: <strong>usuario:</strong> admin —{' '}
-              <strong>contraseña:</strong> Admin#123
             </p>
           </form>
         )}
