@@ -84,6 +84,8 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`API escuchando en http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0'; // 👈 importante para LAN
+
+app.listen(PORT, HOST, () => {
+  console.log(`API escuchando en http://${HOST}:${PORT}`);
 });
