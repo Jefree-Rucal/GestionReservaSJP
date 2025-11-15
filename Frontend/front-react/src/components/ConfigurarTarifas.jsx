@@ -42,7 +42,7 @@ function ConfigurarTarifas() {
       const [inmueblesData, espaciosData, tarifasData] = await Promise.all([
         getJSON('/api/catalogos/inmuebles'),
         getJSON('/api/catalogos/espacios'),
-        getJSON('/api/tarifas'),
+        getJSON('/api/tarifas',),
       ]);
 
       setInmuebles(Array.isArray(inmueblesData) ? inmueblesData : []);
@@ -110,7 +110,7 @@ function ConfigurarTarifas() {
         await putJSON(`/api/tarifas/${editingTarifa.id_tarifa}`, payload);
         setMensaje('✅ Tarifa actualizada correctamente');
       } else {
-        await postJSON('/api/tarifas', payload);
+        await postJSON('/api/tarifas/crear', payload);
         setMensaje('✅ Tarifa creada correctamente');
       }
 

@@ -15,9 +15,6 @@ const pool = new Pool({
 
 /* =========================
    CREATE: POST /api/usuarios
-   Acepta claves en ambos formatos:
-   - { usuario, nombre, apellido, correo, contrasenia, rol, estado }
-   - { u_usuario, u_nombre, u_apellido, u_correo, u_rol_id_rolu, id_estado, password/pass }
    ========================= */
 router.post('/', async (req, res) => {
   try {
@@ -36,14 +33,13 @@ router.post('/', async (req, res) => {
     const last     = (u_apellido ?? apellido ?? '').trim();
     const email    = (u_correo  ?? correo  ?? null) || null;
     const rawPwd   = (contrasenia ?? password ?? pass ?? '').trim();
-    const roleId   = Number(u_rol_id_rolu ?? rol ?? 6) || 6;   // 6 = Usuario por defecto
-    const estadoId = Number(id_estado ?? estado ?? 1) || 1;    // 1 = Activo por defecto
+    const roleId   = Number(u_rol_id_rolu ?? rol ?? 6) || 6;
+    const estadoId = Number(id_estado ?? estado ?? 1) || 1;
 
     if (!username || !first || !rawPwd) {
       return res.status(400).json({ error: 'usuario, nombre y contraseña son requeridos' });
     }
 
-    // Duplicados por u_usuario o u_correo
     const dup = await pool.query(
       `SELECT 1
          FROM usuario
@@ -78,7 +74,7 @@ router.post('/', async (req, res) => {
 });
 
 /* =========================
-   READ: GET /api/usuarios
+   READ LIST: GET /api/usuarios
    ========================= */
 router.get('/', async (_req, res) => {
   try {
@@ -101,6 +97,24 @@ router.get('/', async (_req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+});
+
+/* =========================
+   ROLES: GET /api/usuarios/roles/lista
+   (antes de /:id para evitar capturar "roles" como id)
+   ========================= */
+router.get('/roles/lista', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id_rolu, ur_nombre
+      FROM u_rol
+      ORDER BY id_rolu
+    `);
+    res.json({ roles: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Error al obtener roles' });
   }
 });
 
@@ -184,22 +198,38 @@ router.put('/:id', async (req, res) => {
 });
 
 /* =========================
-   ROLES: GET /api/usuarios/roles/lista
+   DELETE (soft): DELETE /api/usuarios/:id
+   - Niega eliminar administradores (rol 1)
+   - Marca id_estado = 7 (Inactivo)
    ========================= */
-router.get('/roles/lista', async (_req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT id_rolu, ur_nombre
-      FROM u_rol
-      ORDER BY id_rolu
-    `);
-    res.json({ roles: rows });
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+    const { rows } = await pool.query(
+      `SELECT id_usuario, u_rol_id_rolu, id_estado FROM usuario WHERE id_usuario = $1`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const user = rows[0];
+    if (Number(user.u_rol_id_rolu) === 1) {
+      return res.status(403).json({ error: 'No se puede eliminar un Administrador' });
+    }
+
+    const upd = await pool.query(
+      `UPDATE usuario SET id_estado = 7 WHERE id_usuario = $1 RETURNING id_usuario`,
+      [id]
+    );
+    if (upd.rowCount === 0) {
+      return res.status(500).json({ error: 'No se pudo desactivar' });
+    }
+    return res.json({ mensaje: 'Usuario desactivado' });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al obtener roles' });
+    res.status(500).json({ error: 'Error al desactivar usuario' });
   }
 });
-
-
 
 module.exports = router;

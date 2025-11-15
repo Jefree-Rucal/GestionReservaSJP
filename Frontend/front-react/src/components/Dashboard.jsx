@@ -30,7 +30,7 @@ import ListadoUsuarios from './ListadoUsuarios';
 import CrearUsuario from './CrearUsuario';
 import GestionPermisos from './GestionPermisos';
 
-import { getJSON, postJSON } from '../utils/api';
+import { getJSON } from '../utils/api';
 
 /* =========================
    Helpers Auth/Permisos
@@ -72,10 +72,7 @@ function Dashboard() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
   const [mostrarMenuUsuario, setMostrarMenuUsuario] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  // 🟢 NUEVO: estado para menú lateral en móvil
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // ⬅️ nuevo
 
   const sidebarRef = useRef();
   const notificacionesRef = useRef();
@@ -115,8 +112,6 @@ function Dashboard() {
       return;
     }
     setActiveView(view);
-    // 🟢 Al navegar, en móvil cerramos el sidebar
-    setIsSidebarOpen(false);
   };
 
   /* ======= Notificaciones (demo) ======= */
@@ -148,11 +143,8 @@ function Dashboard() {
     setMostrarMenuUsuario(!mostrarMenuUsuario);
 
   const handleClickOutside = (e) => {
-    if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+    if (sidebarRef.current && !sidebarRef.current.contains(e.target))
       setOpenMenu(null);
-      // 🟢 Si se hace click fuera en móvil, cerramos sidebar
-      setIsSidebarOpen(false);
-    }
     if (
       notificacionesRef.current &&
       !notificacionesRef.current.contains(e.target)
@@ -175,24 +167,36 @@ function Dashboard() {
   /* ======= Cerrar sesión (con redirección a /login) ======= */
   const cerrarSesion = async () => {
     try {
-      // Usamos postJSON para heredar BASE_URL y Authorization automáticamente
-      await postJSON('/api/auth/logout', {}).catch(() => {});
+      // (opcional) Invalida token en el backend si tienes endpoint
+      const token =
+        localStorage.getItem('token') ||
+        JSON.parse(localStorage.getItem('auth') || '{}')?.token;
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+      }
     } finally {
+      // Limpia credenciales / sesión del navegador
       ['auth', 'user', 'authUser', 'token', 'jwt'].forEach((k) =>
         localStorage.removeItem(k)
       );
       sessionStorage.clear();
 
+      // Limpia estado UI
       setMostrarMenuUsuario(false);
       setActiveView(null);
       setOpenMenu(null);
       setMe(null);
       setPerms(new Set());
 
+      // Redirige a Login (funciona con o sin React Router)
       window.location.replace('/login');
     }
   };
 
+  // ===== NUEVO: acciones reales para Perfil y Configuración de usuario =====
   const verPerfil = () => {
     setActiveView('perfilUsuario');
     setMostrarMenuUsuario(false);
@@ -203,14 +207,15 @@ function Dashboard() {
     setMostrarMenuUsuario(false);
   };
 
+  // Intenta distintas propiedades típicas donde puede venir el nombre de usuario
   const displayName =
-    me?.u_usuario ||
-    me?.u_nombre ||
-    me?.username ||
-    me?.nombre_usuario ||
-    me?.nombre ||
-    me?.name ||
-    me?.email ||
+    me?.u_usuario || // ej. campo u_usuario
+    me?.u_nombre || // ej. campo u_nombre
+    me?.username || // ej. username
+    me?.nombre_usuario || // ej. nombre_usuario
+    me?.nombre || // ej. nombre
+    me?.name || // ej. name
+    me?.email || // como último recurso, correo
     'Usuario';
 
   const displayRole = isAdmin ? 'Administrador' : me?.rol_nombre || 'Usuario';
@@ -250,15 +255,6 @@ function Dashboard() {
       )}
 
       <header className="topbar">
-        {/* 🟢 Botón hamburguesa (solo se ve en móvil vía CSS) */}
-        <button
-          className="btn-menu-mobile"
-          type="button"
-          onClick={() => setIsSidebarOpen((prev) => !prev)}
-        >
-          ☰
-        </button>
-
         <h1
           className="titulo-barra"
           onClick={() => {
@@ -269,8 +265,6 @@ function Dashboard() {
         >
           Gestión y Reserva San José Pinula
         </h1>
-
-        <div className="topbar-spacer" />
 
         <div className="topbar-usuario-izquierdo">
           <button
@@ -285,6 +279,7 @@ function Dashboard() {
           <div className="panel-usuario-izquierdo" ref={usuarioRef}>
             <div className="panel-header-usuario">
               <div>
+                {/* Aquí se muestra claramente qué usuario inició sesión */}
                 <h3>👤 {displayName}</h3>
                 <p className="panel-usuario-rol">{displayRole}</p>
               </div>
@@ -303,7 +298,7 @@ function Dashboard() {
               </div>
               <div
                 className="opcion-usuario"
-                onClick={() => setShowLogoutConfirm(true)}
+                onClick={() => setShowLogoutConfirm(true)} // ⬅️ abre modal
               >
                 <span>🚪</span>
                 <span>Cerrar Sesión</span>
@@ -371,20 +366,7 @@ function Dashboard() {
       </header>
 
       <div className="dashboard">
-        {/* 🟢 Capa oscura detrás del sidebar en móvil */}
-        <div
-          className={`sidebar-overlay ${
-            isSidebarOpen ? 'sidebar-overlay--visible' : ''
-          }`}
-          onClick={() => setIsSidebarOpen(false)}
-        />
-
-        <aside
-          className={`sidebar ${
-            isSidebarOpen ? 'sidebar--open' : ''
-          }`}
-          ref={sidebarRef}
-        >
+        <aside className="sidebar" ref={sidebarRef}>
           <ul>
             {/* ===== Reservas ===== */}
             <li
@@ -615,7 +597,10 @@ function Dashboard() {
                   {can('pagos.config') && (
                     <li
                       onClick={() =>
-                        go('configurarTarifas', 'pagos.config')
+                        go(
+                          'configurarTarifas',
+                          'pagos.config'
+                        )
                       }
                     >
                       ⚙️ Configurar Tarifas
@@ -624,7 +609,10 @@ function Dashboard() {
                   {can('pagos.registrar') && (
                     <li
                       onClick={() =>
-                        go('registrarPago', 'pagos.registrar')
+                        go(
+                          'registrarPago',
+                          'pagos.registrar'
+                        )
                       }
                     >
                       💳 Pagos Realizados
@@ -633,7 +621,10 @@ function Dashboard() {
                   {can('pagos.historial') && (
                     <li
                       onClick={() =>
-                        go('historialPagos', 'pagos.historial')
+                        go(
+                          'historialPagos',
+                          'pagos.historial'
+                        )
                       }
                     >
                       📚 Historial de Pagos
@@ -642,7 +633,10 @@ function Dashboard() {
                   {can('pagos.reporte') && (
                     <li
                       onClick={() =>
-                        go('reporteFinanciero', 'pagos.reporte')
+                        go(
+                          'reporteFinanciero',
+                          'pagos.reporte'
+                        )
                       }
                     >
                       📈 Reporte Financiero
@@ -693,11 +687,13 @@ function Dashboard() {
                 </ul>
               )}
             </li>
+
+            {/* ===== Configuración ===== */}
           </ul>
         </aside>
 
         <main className="main-content">
-          {/* ===== Reservas y espacios ===== */}
+          {/* ===== Reservas y espacios (con guard en render) ===== */}
           {activeView === 'crearReserva' &&
             (can('reservas.crear') ? (
               <CrearReserva />
@@ -841,7 +837,7 @@ function Dashboard() {
               <NoPermiso />
             ))}
 
-          {/* ===== Perfil de Usuario ===== */}
+          {/* ===== Perfil de Usuario (nuevo) ===== */}
           {activeView === 'perfilUsuario' && (
             <section className="vista-perfil-usuario">
               <h2>👤 Perfil del Usuario</h2>
@@ -866,12 +862,13 @@ function Dashboard() {
             </section>
           )}
 
-          {/* ===== Configuración de Usuario ===== */}
+          {/* ===== Configuración de Usuario (nuevo) ===== */}
           {activeView === 'configUsuario' && (
             <section className="vista-config-usuario">
               <h2>⚙️ Configuración de la Cuenta</h2>
               <p>
-                (por ejemplo, cambiar contraseña, idioma, tema, etc.).
+               (por ejemplo,
+                cambiar contraseña, idioma, tema, etc.).
               </p>
               <p>
                 Por ahora es una vista informativa; luego puedes convertirla
@@ -879,6 +876,9 @@ function Dashboard() {
               </p>
             </section>
           )}
+
+          {/* ===== Config genéricas ===== */}  
+            
 
           {/* ===== Bienvenida ===== */}
           {!activeView && (

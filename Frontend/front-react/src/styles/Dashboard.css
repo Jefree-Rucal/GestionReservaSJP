@@ -16,36 +16,18 @@
   background-color: #004d99;
   color: white;
   display: flex;
-  justify-content: flex-start; /* 🔁 antes center, ahora para layout responsive */
+  justify-content: center;
   align-items: center;
   position: relative;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  padding: 0 16px; /* 🔁 un poco de padding lateral */
-  box-sizing: border-box;
+  padding: 0; /* ✅ Elimina padding extra */
 }
 
 .titulo-barra {
   margin: 0;
-}
-
-/* 🟢 Nuevo: espacio flexible dentro de la topbar */
-.topbar-spacer {
-  flex: 1;
-}
-
-/* 🟢 Nuevo: Botón hamburguesa (se muestra solo en móvil con media query) */
-.btn-menu-mobile {
-  border: none;
-  background: transparent;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  display: none; /* desktop: oculto */
-  padding: 4px;
-  margin-right: 8px;
 }
 
 /* ✅ Nuevo: Estilos para menú de usuario en el lado izquierdo */
@@ -317,17 +299,6 @@
   box-shadow: 2px 0 6px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
-  z-index: 900;
-}
-
-/* 🟢 Nuevo: overlay para el sidebar en móvil */
-.sidebar-overlay {
-  display: none;
-}
-
-/* Para el modifier que se agrega desde React */
-.sidebar.sidebar--open {
-  /* en desktop no hace nada, se maneja en media query */
 }
 
 .sidebar h2 {
@@ -510,7 +481,7 @@
   box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
-/* Responsive original */
+/* Responsive */
 @media (max-width: 768px) {
   .sidebar {
     width: 200px;
@@ -728,68 +699,4 @@
 .btn-modal:active {
   transform: translateY(1px);
   box-shadow: none;
-}
-
-/* ================================
-   🟢 NUEVO BLOQUE RESPONSIVE REAL
-   ================================ */
-
-@media (max-width: 900px) {
-  .topbar {
-    justify-content: flex-start;
-    padding: 0 10px;
-    font-size: 16px;
-  }
-
-  .btn-menu-mobile {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .titulo-barra {
-    font-size: 16px;
-    margin-left: 8px;
-  }
-
-  .dashboard {
-    flex-direction: column;
-  }
-
-  /* Sidebar se vuelve tipo "drawer" deslizante */
-  .sidebar {
-    position: fixed;
-    top: 80px; /* altura de la topbar */
-    left: 0;
-    height: calc(100vh - 80px);
-    width: 75%;
-    max-width: 260px;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease-out;
-    z-index: 1100;
-  }
-
-  .sidebar.sidebar--open {
-    transform: translateX(0);
-  }
-
-  .sidebar-overlay {
-    display: block;
-    position: fixed;
-    inset: 80px 0 0 0; /* desde abajo de la topbar */
-    background: rgba(15, 23, 42, 0.45);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease-out;
-    z-index: 1000;
-  }
-
-  .sidebar-overlay.sidebar-overlay--visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .main-content {
-    padding: 16px 10px;
-  }
 }

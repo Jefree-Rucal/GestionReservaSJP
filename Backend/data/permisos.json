@@ -5,6 +5,28 @@
     ]
   },
   "usuarios": {
+    "1": [
+      "reservas",
+      "reservas.crear",
+      "reservas.listado",
+      "reservas.historial",
+      "reservas.calendario",
+      "reservas.aprobacion",
+      "espacios",
+      "espacios.listado-espacios",
+      "espacios.listado-muebles",
+      "espacios.disponibilidad",
+      "pagos",
+      "pagos.registrar",
+      "pagos.historial",
+      "reportes",
+      "reportes.uso",
+      "reportes.usuarios",
+      "usuarios",
+      "usuarios.listado",
+      "usuarios.crear",
+      "usuarios.permisos"
+    ],
     "4": [
       "reportes",
       "reportes.uso",
